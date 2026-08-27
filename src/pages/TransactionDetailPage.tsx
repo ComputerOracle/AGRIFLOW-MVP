@@ -1,0 +1,503 @@
+import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft, CheckCircle2, Circle, Loader2, CreditCard,
+  AlertTriangle, BookOpen,
+} from 'lucide-react';
+import { transactionService } from '../services/transactionService';
+import { paymentService } from '../services/paymentService';
+import { logisticsService } from '../services/logisticsService';
+import { disputeService } from '../services/disputeService';
+import { auditService } from '../services/auditService';
+import { TRANSACTION_PIPELINE, getPipelineIndex, getStatusLabel } from '../services/transactionStateMachine';
+import { useApp } from '../context/AppContext';
+import { useToast } from '../components/ui/Toast';
+import { Button } from '../components/ui/Button';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { Card, CardContent, CardHeader } from '../components/ui/Card';
+import { Modal } from '../components/ui/Modal';
+import { Input, Textarea } from '../components/ui/Input';
+import { formatCurrency, formatDate, formatDateTime, formatCommodity, COMMODITY_ICONS } from '../utils/format';
+import type { Transaction, Payment, LogisticsJob, AuditEvent } from '../types';
+
+export function TransactionDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { session, refreshNotifications } = useApp();
+  const { toast } = useToast();
+  const [txn, setTxn] = useState<Transaction | null>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
+  const [job, setJob] = useState<LogisticsJob | null>(null);
+  const [audit, setAudit] = useState<AuditEvent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showDisputeModal, setShowDisputeModal] = useState(false);
+  const [showPayModal, setShowPayModal] = useState(false);
+  const [disputeForm, setDisputeForm] = useState({ reason: '', description: '' });
+  const [payProcessing, setPayProcessing] = useState(false);
+
+  const refresh = () => {
+    if (!id) return;
+    const t = transactionService.getById(id);
+    setTxn(t);
+    if (t) {
+      setPayment(paymentService.getForTransaction(t.id));
+      setJob(logisticsService.getForTransaction(t.id));
+      setAudit(auditService.getForTransaction(t.id));
+    }
+  };
+
+  useEffect(() => { refresh(); }, [id]);
+
+  if (!txn || !session) return (
+    <div className="p-6 flex items-center justify-center text-gray-500">Transaction not found.</div>
+  );
+
+  const role = session.role;
+  const isSupplier = role === 'supplier' && txn.supplierId === session.userId;
+  const isBuyer = role === 'buyer' && txn.buyerId === session.userId;
+
+  // Action handlers
+  const handleAccept = async () => {
+    setLoading(true);
+    try {
+      await transactionService.transition({
+        transactionId: txn.id, to: 'ACCEPTED',
+        actorId: session.userId, actorName: session.name, actorRole: 'supplier',
+        note: 'Supplier accepted the transaction.',
+      });
+      toast('success', 'Transaction accepted.');
+      refreshNotifications();
+      refresh();
+    } catch (e: any) { toast('error', e.message); }
+    finally { setLoading(false); }
+  };
+
+  const handleReject = async () => {
+    setLoading(true);
+    try {
+      await transactionService.transition({
+        transactionId: txn.id, to: 'REJECTED',
+        actorId: session.userId, actorName: session.name, actorRole: 'supplier',
+      });
+      toast('info', 'Transaction rejected.');
+      refreshNotifications();
+      refresh();
+    } catch (e: any) { toast('error', e.message); }
+    finally { setLoading(false); }
+  };
+
+  const handlePay = async (simulate: 'success' | 'failure') => {
+    setPayProcessing(true);
+    setShowPayModal(false);
+    try {
+      // Initiate payment
+      const p = await paymentService.initiate({
+        transactionId: txn.id, payerId: session.userId, payerName: session.name,
+        amount: txn.totalAmount, currency: txn.currency,
+      });
+      toast('info', 'Processing payment...');
+      refresh();
+      if (simulate === 'success') {
+        await paymentService.confirm(p.id, session.userId, session.name);
+        toast('success', 'Payment confirmed! Logistics job created.');
+      } else {
+        await paymentService.fail(p.id, 'Insufficient funds (simulated).');
+        toast('error', 'Payment failed: Insufficient funds (simulated).');
+      }
+      refreshNotifications();
+      refresh();
+    } catch (e: any) { toast('error', e.message); }
+    finally { setPayProcessing(false); }
+  };
+
+  const handleConfirmDelivery = async () => {
+    if (txn.status !== 'DELIVERED') {
+      toast('error', 'Delivery cannot be confirmed yet. The logistics provider must first mark the shipment as delivered.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await transactionService.transition({
+        transactionId: txn.id, to: 'DELIVERY_CONFIRMED',
+        actorId: session.userId, actorName: session.name, actorRole: 'buyer',
+      });
+      await transactionService.transition({
+        transactionId: txn.id, to: 'COMPLETED',
+        actorId: 'system', actorName: 'AgriFlow System', actorRole: 'system',
+      });
+      toast('success', 'Delivery confirmed! Transaction completed.');
+      refreshNotifications();
+      refresh();
+    } catch (e: any) { toast('error', e.message); }
+    finally { setLoading(false); }
+  };
+
+  const handleRaiseDispute = async () => {
+    if (!disputeForm.reason || !disputeForm.description) { toast('error', 'Please provide a reason and description.'); return; }
+    setLoading(true);
+    try {
+      await disputeService.raise({
+        transactionId: txn.id, raisedById: session.userId, raisedByName: session.name,
+        reason: disputeForm.reason, description: disputeForm.description,
+      });
+      toast('warning', 'Dispute raised. Our team will review shortly.');
+      setShowDisputeModal(false);
+      refreshNotifications();
+      refresh();
+    } catch (e: any) { toast('error', e.message); }
+    finally { setLoading(false); }
+  };
+
+  const pipelineIdx = getPipelineIndex(txn.status);
+  const terminalStates = ['COMPLETED', 'CANCELLED', 'REJECTED', 'DISPUTED'];
+  const isTerminal = terminalStates.includes(txn.status);
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto">
+      {/* Back + header */}
+      <div className="flex items-start gap-4 mb-6">
+        <button onClick={() => navigate(-1)} className="mt-1 p-1.5 hover:bg-gray-100 rounded-lg">
+          <ArrowLeft className="w-4 h-4 text-gray-500" />
+        </button>
+        <div className="flex-1">
+          <div className="flex flex-wrap items-center gap-3 mb-1">
+            <h1 className="text-xl font-bold text-gray-900 font-mono">{txn.id}</h1>
+            <StatusBadge status={txn.status} />
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <span className="text-2xl">{COMMODITY_ICONS[txn.commodity]}</span>
+            <span className="font-medium text-gray-800">{formatCommodity(txn.commodity)}</span>
+            <span>·</span>
+            <span>{txn.quantity} {txn.unit}</span>
+            <span>·</span>
+            <span className="font-semibold text-gray-900">{formatCurrency(txn.totalAmount)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Transaction progress timeline */}
+      <Card className="mb-6">
+        <CardHeader>
+          <h2 className="font-semibold text-gray-800">Transaction Progress</h2>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-0 overflow-x-auto pb-2">
+            {TRANSACTION_PIPELINE.map((step, idx) => {
+              const done = pipelineIdx > idx || (txn.status === 'COMPLETED' && idx === TRANSACTION_PIPELINE.length - 1);
+              const current = !isTerminal && pipelineIdx === idx;
+              return (
+                <div key={step} className="flex items-center gap-0 shrink-0">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all
+                      ${done ? 'bg-agri-600 border-agri-600 text-white' : current ? 'bg-white border-agri-500 text-agri-600' : 'bg-white border-gray-300 text-gray-400'}`}>
+                      {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : current ? <Circle className="w-3.5 h-3.5 fill-agri-500" /> : <Circle className="w-3.5 h-3.5" />}
+                    </div>
+                    <div className={`text-[9px] mt-1 text-center max-w-[60px] leading-tight font-medium
+                      ${done ? 'text-agri-700' : current ? 'text-agri-600' : 'text-gray-400'}`}>
+                      {getStatusLabel(step)}
+                    </div>
+                  </div>
+                  {idx < TRANSACTION_PIPELINE.length - 1 && (
+                    <div className={`h-0.5 w-8 mx-1 ${pipelineIdx > idx ? 'bg-agri-500' : 'bg-gray-200'}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {isTerminal && !['COMPLETED'].includes(txn.status) && (
+            <div className="mt-3 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-xs text-red-700 font-medium">Transaction ended: <strong>{getStatusLabel(txn.status)}</strong></p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Action area */}
+      <div className="mb-6">
+        {/* Supplier: accept/reject */}
+        {isSupplier && txn.status === 'PENDING' && (
+          <div className="px-4 py-4 bg-amber-50 border border-amber-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-amber-900">Action Required</p>
+              <p className="text-xs text-amber-700">{txn.buyerName} has requested this transaction. Please review and respond.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" loading={loading} onClick={handleReject}>Reject</Button>
+              <Button loading={loading} onClick={handleAccept}>Accept Transaction</Button>
+            </div>
+          </div>
+        )}
+
+        {/* Buyer: pay */}
+        {isBuyer && txn.status === 'ACCEPTED' && (
+          <div className="px-4 py-4 bg-blue-50 border border-blue-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-blue-900">Payment Required</p>
+              <p className="text-xs text-blue-700">Supplier has accepted. Initiate payment to proceed to logistics.</p>
+            </div>
+            <Button icon={<CreditCard className="w-4 h-4" />} onClick={() => setShowPayModal(true)}>
+              Pay {formatCurrency(txn.totalAmount)}
+            </Button>
+          </div>
+        )}
+
+        {/* Buyer: payment failed - retry */}
+        {isBuyer && txn.status === 'PAYMENT_FAILED' && (
+          <div className="px-4 py-4 bg-red-50 border border-red-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-red-900">Payment Failed</p>
+              <p className="text-xs text-red-700">{payment?.failureReason ?? 'The payment could not be processed.'}</p>
+            </div>
+            <Button icon={<CreditCard className="w-4 h-4" />} onClick={() => setShowPayModal(true)}>Retry Payment</Button>
+          </div>
+        )}
+
+        {payProcessing && (
+          <div className="px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-3">
+            <Loader2 className="w-4 h-4 animate-spin text-agri-600" />
+            <p className="text-sm text-gray-700">Processing payment...</p>
+          </div>
+        )}
+
+        {/* Buyer: confirm delivery */}
+        {isBuyer && txn.status === 'DELIVERED' && (
+          <div className="px-4 py-4 bg-teal-50 border border-teal-200 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-teal-900">Shipment Delivered — Confirm Receipt</p>
+              <p className="text-xs text-teal-700">The logistics provider has marked this shipment as delivered. Please confirm you received it.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" icon={<AlertTriangle className="w-4 h-4" />} onClick={() => setShowDisputeModal(true)}>
+                Report Issue
+              </Button>
+              <Button loading={loading} icon={<CheckCircle2 className="w-4 h-4" />} onClick={handleConfirmDelivery}>
+                Confirm Delivery
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Commercial terms */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader><h2 className="font-semibold text-gray-800">Commercial Terms</h2></CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-2 gap-4">
+                {[
+                  { label: 'Commodity', value: formatCommodity(txn.commodity) },
+                  { label: 'Quantity', value: `${txn.quantity} ${txn.unit}` },
+                  { label: 'Quality Grade', value: `Grade ${txn.qualityGrade}` },
+                  { label: 'Price per Unit', value: formatCurrency(txn.pricePerUnit) },
+                  { label: 'Total Value', value: <span className="font-bold text-agri-700">{formatCurrency(txn.totalAmount)}</span> },
+                  { label: 'Currency', value: txn.currency },
+                  { label: 'Pickup Location', value: txn.pickupLocation },
+                  { label: 'Delivery Location', value: txn.deliveryLocation },
+                  { label: 'Expected Delivery', value: formatDate(txn.expectedDeliveryDate) },
+                  { label: 'Initiated', value: formatDateTime(txn.createdAt) },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <div className="text-xs text-gray-500 mb-0.5">{label}</div>
+                    <div className="text-sm font-medium text-gray-800">{value}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Counterparties */}
+          <Card>
+            <CardHeader><h2 className="font-semibold text-gray-800">Parties</h2></CardHeader>
+            <CardContent>
+              <div className="grid sm:grid-cols-2 gap-6">
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Buyer</div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-sm">
+                      {txn.buyerName[0]}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-800">{txn.buyerName}</div>
+                      <div className="text-xs text-gray-500">{txn.deliveryLocation}</div>
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Supplier</div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-agri-100 rounded-full flex items-center justify-center text-agri-700 font-bold text-sm">
+                      {txn.supplierName[0]}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-800">{txn.supplierName}</div>
+                      <div className="text-xs text-gray-500">{txn.pickupLocation}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment */}
+          {payment && (
+            <Card>
+              <CardHeader><h2 className="font-semibold text-gray-800">Payment</h2></CardHeader>
+              <CardContent>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div><div className="text-xs text-gray-500 mb-0.5">Payment ID</div><div className="text-sm font-mono text-gray-700">{payment.id}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Amount</div><div className="text-sm font-bold text-agri-700">{formatCurrency(payment.amount)}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Provider</div><div className="text-sm text-gray-700">{payment.provider}</div></div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-0.5">Status</div>
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full border inline-block
+                      ${payment.status === 'CONFIRMED' ? 'bg-agri-50 border-agri-200 text-agri-700' :
+                        payment.status === 'FAILED' ? 'bg-red-50 border-red-200 text-red-700' :
+                        'bg-amber-50 border-amber-200 text-amber-700'}`}>
+                      {payment.status}
+                    </span>
+                  </div>
+                  {payment.providerReference && (
+                    <div className="sm:col-span-2">
+                      <div className="text-xs text-gray-500 mb-0.5">Provider Reference</div>
+                      <div className="text-sm font-mono text-gray-700">{payment.providerReference}</div>
+                    </div>
+                  )}
+                  {payment.completedAt && (
+                    <div><div className="text-xs text-gray-500 mb-0.5">Confirmed at</div><div className="text-sm text-gray-700">{formatDateTime(payment.completedAt)}</div></div>
+                  )}
+                  {payment.failureReason && (
+                    <div className="sm:col-span-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="text-xs text-red-700">{payment.failureReason}</div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Logistics */}
+          {job && (
+            <Card>
+              <CardHeader><h2 className="font-semibold text-gray-800">Logistics</h2></CardHeader>
+              <CardContent>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div><div className="text-xs text-gray-500 mb-0.5">Job ID</div><div className="text-sm font-mono text-gray-700">{job.id}</div></div>
+                  <div>
+                    <div className="text-xs text-gray-500 mb-0.5">Status</div>
+                    <span className="text-xs font-semibold px-2 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 inline-block">
+                      {job.status.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Provider</div><div className="text-sm text-gray-700">{job.providerName ?? <span className="text-gray-400 italic">Not yet assigned</span>}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Logistics Cost</div><div className="text-sm text-gray-700">{formatCurrency(job.logisticsCost)}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Pickup</div><div className="text-sm text-gray-700">{job.pickupLocation}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Destination</div><div className="text-sm text-gray-700">{job.deliveryLocation}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Expected Delivery</div><div className="text-sm text-gray-700">{formatDate(job.expectedDeliveryDate)}</div></div>
+                  {job.proofOfDelivery && (
+                    <div className="sm:col-span-2">
+                      <div className="text-xs text-gray-500 mb-1">Proof of Delivery</div>
+                      <div className="px-3 py-2 bg-agri-50 border border-agri-200 rounded-lg text-sm">
+                        <div className="font-medium text-agri-800">Received by: {job.proofOfDelivery.recipientName}</div>
+                        <div className="text-xs text-agri-600 mt-0.5">{job.proofOfDelivery.deliveryNote}</div>
+                        <div className="text-xs text-gray-500 mt-0.5">{formatDateTime(job.proofOfDelivery.timestamp)}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Audit trail */}
+        <div>
+          <Card className="sticky top-6">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-gray-500" />
+                <h2 className="font-semibold text-gray-800">Audit Trail</h2>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 max-h-[600px] overflow-y-auto">
+              {audit.length === 0 ? (
+                <div className="px-5 py-8 text-center text-xs text-gray-400">No audit events yet</div>
+              ) : (
+                <div className="px-5 py-4">
+                  <div className="relative">
+                    <div className="absolute left-2 top-0 bottom-0 w-px bg-gray-100" />
+                    <div className="space-y-4">
+                      {audit.map((ev) => (
+                        <div key={ev.id} className="relative pl-6">
+                          <div className="absolute left-0 top-1 w-4 h-4 bg-agri-100 border-2 border-agri-400 rounded-full" />
+                          <div className="text-[10px] text-gray-400 mb-0.5">{formatDateTime(ev.createdAt)}</div>
+                          <div className="text-xs font-medium text-gray-800">{ev.actorName}</div>
+                          <div className="text-xs text-gray-600">{ev.detail ?? ev.action}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Pay modal */}
+      <Modal open={showPayModal} onClose={() => setShowPayModal(false)} title="Complete Escrow Payment">
+        <div className="space-y-4">
+          <div className="px-4 py-3 bg-green-50 border border-green-200 rounded-lg text-xs text-green-800">
+            <strong>Escrow Protection</strong> — Funds are secured by AgriFlow and only released after delivery confirmation.
+          </div>
+          <div>
+            <div className="text-sm text-gray-600 mb-1">Transaction</div>
+            <div className="font-mono text-sm font-medium text-gray-800">{txn.id}</div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-600 mb-1">Amount</div>
+            <div className="text-2xl font-bold text-agri-700">{formatCurrency(txn.totalAmount)}</div>
+          </div>
+          <div>
+            <div className="text-sm text-gray-600 mb-1">Provider</div>
+            <div className="text-sm text-gray-800">AgriFlow Escrow Settlement</div>
+          </div>
+          <div className="flex flex-col gap-2 pt-2">
+            <Button className="w-full" onClick={() => handlePay('success')} icon={<CreditCard className="w-4 h-4" />}>
+              Confirm Payment {formatCurrency(txn.totalAmount)}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Dispute modal */}
+      <Modal open={showDisputeModal} onClose={() => setShowDisputeModal(false)} title="Report Issue">
+        <div className="space-y-4">
+          <div className="grid gap-3">
+            <Input
+              label="Reason"
+              value={disputeForm.reason}
+              onChange={(e) => setDisputeForm((f) => ({ ...f, reason: e.target.value }))}
+              placeholder="e.g. Wrong quantity delivered"
+              required
+            />
+            <Textarea
+              label="Description"
+              value={disputeForm.description}
+              onChange={(e) => setDisputeForm((f) => ({ ...f, description: e.target.value }))}
+              rows={4}
+              placeholder="Describe the issue in detail..."
+              required
+            />
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setShowDisputeModal(false)}>Cancel</Button>
+            <Button variant="danger" loading={loading} onClick={handleRaiseDispute} icon={<AlertTriangle className="w-4 h-4" />}>
+              Submit Dispute
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}

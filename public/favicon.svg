@@ -1,0 +1,19 @@
+<svg width="64" height="64" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="agri-flow-grad1" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#22c55e" />
+      <stop offset="60%" stopColor="#15803d" />
+      <stop offset="100%" stopColor="#14532d" />
+    </linearGradient>
+    <linearGradient id="agri-flow-grad2" x1="42" y1="12" x2="10" y2="38" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stopColor="#86efac" />
+      <stop offset="50%" stopColor="#16a34a" />
+      <stop offset="100%" stopColor="#15803d" />
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="12" fill="#14532d" />
+  <path d="M 12 28 C 12 17 21 11 32 10 C 33.5 14.5 32 20 27 24 C 22 28 17 28.5 12 28 Z" fill="url(#agri-flow-grad2)" />
+  <path d="M 36 20 C 36 31 27 37 16 38 C 14.5 33.5 16 28 21 24 C 26 20 31 19.5 36 20 Z" fill="url(#agri-flow-grad1)" />
+  <circle cx="24" cy="24" r="3.5" fill="#ffffff" />
+  <circle cx="24" cy="24" r="2" fill="#15803d" />
+</svg>
