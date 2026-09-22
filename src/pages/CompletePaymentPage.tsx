@@ -16,10 +16,11 @@ export function CompletePaymentPage() {
   const [tx, setTx] = useState<Transaction | null>(null);
 
   useEffect(() => {
-    const transaction = transactionService.getById(id || 'TXN-4821');
-    if (transaction) {
-      setTx(transaction);
-    }
+    let cancelled = false;
+    transactionService.getById(id || 'TXN-4821').then((transaction) => {
+      if (!cancelled && transaction) setTx(transaction);
+    });
+    return () => { cancelled = true; };
   }, [id]);
 
   const goodsSubtotal = 5760000;

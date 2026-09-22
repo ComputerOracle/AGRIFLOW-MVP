@@ -1,20 +1,33 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRightLeft } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/ui/Toast';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatCurrency, formatDateTime, formatCommodity } from '../utils/format';
+import type { Transaction } from '../types';
 
 export function TransactionsPage() {
   const { session } = useApp();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  if (!session) return null;
+  const [txns, setTxns] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  let txns = [];
-  if (session.role === 'buyer') txns = transactionService.getForBuyer(session.userId);
-  else if (session.role === 'supplier') txns = transactionService.getForSupplier(session.userId);
-  else txns = transactionService.getAll();
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    setLoading(true);
+    transactionService.getAll()
+      .then((data) => { if (!cancelled) setTxns(data); })
+      .catch((e: unknown) => { if (!cancelled) toast('error', e instanceof Error ? e.message : 'Failed to load transactions.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [session, toast]);
+
+  if (!session) return null;
 
   const sorted = [...txns].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
@@ -24,7 +37,9 @@ export function TransactionsPage() {
         {session.role === 'buyer' ? 'My Transactions' : session.role === 'supplier' ? 'Transaction Requests' : 'All Transactions'}
       </h1>
 
-      {sorted.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Loading transactions...</div>
+      ) : sorted.length === 0 ? (
         <EmptyState icon={<ArrowRightLeft className="w-7 h-7" />} title="No transactions yet" description={session.role === 'buyer' ? 'Browse available supply to initiate your first transaction.' : 'Transaction requests will appear here.'} />
       ) : (
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">

@@ -34,22 +34,27 @@ export function TransactionDetailPage() {
   const [showPayModal, setShowPayModal] = useState(false);
   const [disputeForm, setDisputeForm] = useState({ reason: '', description: '' });
   const [payProcessing, setPayProcessing] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
-  const refresh = () => {
+  const refresh = async () => {
     if (!id) return;
-    const t = transactionService.getById(id);
+    const t = await transactionService.getById(id);
     setTxn(t);
     if (t) {
       setPayment(paymentService.getForTransaction(t.id));
       setJob(logisticsService.getForTransaction(t.id));
       setAudit(auditService.getForTransaction(t.id));
+    } else {
+      setNotFound(true);
     }
   };
 
   useEffect(() => { refresh(); }, [id]);
 
   if (!txn || !session) return (
-    <div className="p-6 flex items-center justify-center text-gray-500">Transaction not found.</div>
+    <div className="p-6 flex items-center justify-center text-gray-500">
+      {notFound ? 'Transaction not found.' : 'Loading transaction...'}
+    </div>
   );
 
   const role = session.role;
@@ -67,7 +72,7 @@ export function TransactionDetailPage() {
       });
       toast('success', 'Transaction accepted.');
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
   };
@@ -81,7 +86,7 @@ export function TransactionDetailPage() {
       });
       toast('info', 'Transaction rejected.');
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
   };
@@ -96,7 +101,7 @@ export function TransactionDetailPage() {
         amount: txn.totalAmount, currency: txn.currency,
       });
       toast('info', 'Processing payment...');
-      refresh();
+      await refresh();
       if (simulate === 'success') {
         await paymentService.confirm(p.id, session.userId, session.name);
         toast('success', 'Payment confirmed! Logistics job created.');
@@ -105,7 +110,7 @@ export function TransactionDetailPage() {
         toast('error', 'Payment failed: Insufficient funds (simulated).');
       }
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setPayProcessing(false); }
   };
@@ -127,7 +132,7 @@ export function TransactionDetailPage() {
       });
       toast('success', 'Delivery confirmed! Transaction completed.');
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
   };
@@ -143,7 +148,7 @@ export function TransactionDetailPage() {
       toast('warning', 'Dispute raised. Our team will review shortly.');
       setShowDisputeModal(false);
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
   };
