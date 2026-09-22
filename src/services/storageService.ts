@@ -35,6 +35,7 @@ export const storageService = {
 export const STORE_KEYS = {
   USERS: 'users',
   SESSION: 'session',
+  TOKEN: 'token',
   LISTINGS: 'listings',
   DEMANDS: 'demands',
   MATCHES: 'matches',
