@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LogOut, Bell, ChevronDown, Sprout } from 'lucide-react';
+import { LogOut, Bell, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { AgriFlowLogo } from '../ui/AgriFlowLogo';
@@ -50,7 +50,7 @@ function getNavItems(role: UserRole): NavItem[] {
 }
 
 export function Navbar() {
-  const { session, logout, unreadCount, farmerMode, setFarmerMode } = useApp();
+  const { session, logout, unreadCount } = useApp();
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -122,24 +122,7 @@ export function Navbar() {
           <div className="flex items-center gap-2">
             <LanguageToggle />
 
-            {(session.role === 'buyer' || session.role === 'supplier') && (
-              <button
-                type="button"
-                onClick={() => setFarmerMode(!farmerMode)}
-                title={t('farmer.modeLabel')}
-                aria-label={t('farmer.modeLabel')}
-                className={`flex items-center gap-1 p-1.5 rounded-md text-xs font-medium transition-colors ${
-                  farmerMode
-                    ? 'bg-agri-100 text-agri-700 border border-agri-300'
-                    : 'text-gray-400 hover:text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <Sprout className="w-4 h-4" />
-                <span className="hidden sm:inline">{t('farmer.modeLabel')}</span>
-              </button>
-            )}
-
-            <NavLink
+<NavLink
               to="/app/notifications"
               className="relative p-1.5 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-50"
               title={t('nav.notifications')}

@@ -24,8 +24,6 @@ interface AppContextValue {
   unreadCount: number;
   refreshNotifications: () => void;
   logout: () => void;
-  farmerMode: boolean;
-  setFarmerMode: (v: boolean) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -33,14 +31,6 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(() => authService.getSession());
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [farmerMode, setFarmerModeState] = useState<boolean>(() => {
-    try { return localStorage.getItem('agriflow_farmerMode') === 'true'; } catch { return false; }
-  });
-
-  const setFarmerMode = useCallback((v: boolean) => {
-    setFarmerModeState(v);
-    try { localStorage.setItem('agriflow_farmerMode', String(v)); } catch {}
-  }, []);
 
   // Seed on first load
   useEffect(() => {
@@ -97,8 +87,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         unreadCount,
         refreshNotifications,
         logout,
-        farmerMode,
-        setFarmerMode,
       }}
     >
       {children}
