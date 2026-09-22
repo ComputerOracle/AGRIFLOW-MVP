@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { disputeService } from '../../services/disputeService';
 import { transactionService } from '../../services/transactionService';
@@ -10,7 +10,7 @@ import { Textarea, Select } from '../../components/ui/Input';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { formatDateTime } from '../../utils/format';
-import type { Dispute } from '../../types';
+import type { Dispute, Transaction } from '../../types';
 
 export function AdminDisputesPage() {
   const { session, refreshNotifications } = useApp();
@@ -18,10 +18,26 @@ export function AdminDisputesPage() {
   const [resolving, setResolving] = useState<Dispute | null>(null);
   const [resolution, setResolution] = useState({ decision: '', outcome: 'completed' as 'completed' | 'cancelled' });
   const [loading, setLoading] = useState(false);
+  const [disputes, setDisputes] = useState<Dispute[]>([]);
+  const [txnsById, setTxnsById] = useState<Record<string, Transaction>>({});
+
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    const all = disputeService.getAll();
+    setDisputes(all);
+    Promise.all(all.map(async (d) => [d.transactionId, await transactionService.getById(d.transactionId)] as const))
+      .then((entries) => {
+        if (cancelled) return;
+        const map: Record<string, Transaction> = {};
+        for (const [txnId, t] of entries) if (t) map[txnId] = t;
+        setTxnsById(map);
+      });
+    return () => { cancelled = true; };
+  }, [session]);
 
   if (!session) return null;
 
-  const disputes = disputeService.getAll();
   const sorted = [...disputes].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   const handleResolve = async () => {
@@ -37,6 +53,7 @@ export function AdminDisputesPage() {
       });
       toast('success', 'Dispute resolved.');
       refreshNotifications();
+      setDisputes(disputeService.getAll());
       setResolving(null);
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
@@ -58,7 +75,7 @@ export function AdminDisputesPage() {
       ) : (
         <div className="space-y-3">
           {sorted.map((d) => {
-            const txn = transactionService.getById(d.transactionId);
+            const txn = txnsById[d.transactionId];
             return (
               <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-5">
                 <div className="flex items-start justify-between mb-3">

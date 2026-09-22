@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, User } from 'lucide-react';
 import { logisticsService } from '../../services/logisticsService';
@@ -11,7 +11,7 @@ import { Select } from '../../components/ui/Input';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { formatDate, formatCommodity } from '../../utils/format';
-import type { LogisticsJob } from '../../types';
+import type { LogisticsJob, Transaction } from '../../types';
 
 export function AdminLogisticsPage() {
   const { session, refreshNotifications } = useApp();
@@ -20,11 +20,29 @@ export function AdminLogisticsPage() {
   const [assigningJob, setAssigningJob] = useState<LogisticsJob | null>(null);
   const [selectedProvider, setSelectedProvider] = useState('');
   const [loading, setLoading] = useState(false);
-
-  if (!session) return null;
+  const [txnsById, setTxnsById] = useState<Record<string, Transaction>>({});
 
   const allJobs = logisticsService.getAll();
   const providers = logisticsService.getProviders();
+
+  const loadTxns = (jobs: LogisticsJob[]) => {
+    Promise.all(jobs.map(async (j) => [j.transactionId, await transactionService.getById(j.transactionId)] as const))
+      .then((entries) => {
+        const map: Record<string, Transaction> = {};
+        for (const [txnId, t] of entries) if (t) map[txnId] = t;
+        setTxnsById(map);
+      });
+  };
+
+  useEffect(() => {
+    if (!session) return;
+    loadTxns(allJobs);
+    // Fetch once on mount; handleAssign re-fetches explicitly after a change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
+
+  if (!session) return null;
+
   const sorted = [...allJobs].sort((a, b) => {
     const priority = ['PENDING', 'ASSIGNED', 'ACCEPTED', 'READY_FOR_PICKUP', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED'];
     return priority.indexOf(a.status) - priority.indexOf(b.status);
@@ -42,6 +60,7 @@ export function AdminLogisticsPage() {
       );
       toast('success', `${provider.organizationName ?? provider.name} assigned to job ${assigningJob.id}.`);
       refreshNotifications();
+      loadTxns(logisticsService.getAll());
       setAssigningJob(null);
       setSelectedProvider('');
     } catch (e: any) { toast('error', e.message); }
@@ -71,7 +90,7 @@ export function AdminLogisticsPage() {
               </thead>
               <tbody>
                 {sorted.map((j) => {
-                  const txn = transactionService.getById(j.transactionId);
+                  const txn = txnsById[j.transactionId];
                   return (
                     <tr key={j.id} className="border-b border-gray-50 hover:bg-gray-50">
                       <td className="px-5 py-3.5 font-mono text-xs text-gray-500">{j.id}</td>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Package, Clock, CheckCircle2, ArrowRightLeft, Truck } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
@@ -8,6 +9,7 @@ import { Card, CardContent } from '../../components/ui/Card';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { formatCurrency, formatCommodity } from '../../utils/format';
+import type { SupplyListing, Transaction } from '../../types';
 
 function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
   return (
@@ -24,10 +26,21 @@ function StatCard({ label, value, icon, color }: { label: string; value: number;
 export function SupplierDashboard() {
   const { session } = useApp();
   const navigate = useNavigate();
-  if (!session) return null;
+  const [listings, setListings] = useState<SupplyListing[]>([]);
+  const [allTxns, setAllTxns] = useState<Transaction[]>([]);
 
-  const listings = supplyService.getForSupplier(session.userId);
-  const allTxns = transactionService.getForSupplier(session.userId);
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    Promise.all([supplyService.getForSupplier(), transactionService.getForSupplier()]).then(([l, t]) => {
+      if (cancelled) return;
+      setListings(l);
+      setAllTxns(t);
+    });
+    return () => { cancelled = true; };
+  }, [session]);
+
+  if (!session) return null;
 
   const activeListings = listings.filter((l) => l.status === 'active').length;
   const pending = allTxns.filter((t) => t.status === 'PENDING' || t.status === 'PENDING_SUPPLIER_ACCEPTANCE').length;
