@@ -3,6 +3,8 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../components/ui/Toast';
 import { transactionService } from '../services/transactionService';
+import { invokeContract, txIdToScVal, stellarExpertLink, getWalletKey } from '../lib/stellar';
+import { FreighterBanner } from '../components/ui/FreighterBanner';
 
 export function ConfirmReceiptPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +17,7 @@ export function ConfirmReceiptPage() {
   const [undamagedChecked, setUndamagedChecked] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [releaseTxHash, setReleaseTxHash] = useState<string | null>(null);
 
   const canConfirm = qtyChecked && qualityChecked && undamagedChecked;
 
@@ -22,16 +25,26 @@ export function ConfirmReceiptPage() {
     if (!session || !canConfirm) return;
     setConfirming(true);
     try {
+      // 1. Call release() on Soroban contract
+      const pubKey = await getWalletKey();
+      if (pubKey) {
+        const txIdVal = await txIdToScVal(id ?? 'TXN-4821');
+        const hash = await invokeContract('release', [txIdVal], pubKey);
+        setReleaseTxHash(hash);
+      }
+
+      // 2. Advance localStorage state as before
       await transactionService.transition({
-        transactionId: id || 'TXN-4821',
+        transactionId: id ?? 'TXN-4821',
         to: 'COMPLETED',
         actorId: session.userId,
         actorName: session.name,
         actorRole: 'buyer',
-        note: 'Buyer confirmed receipt of goods. Escrow released to supplier and logistics.',
+        note: 'Buyer confirmed receipt. On-chain escrow released on Stellar.',
       });
+
       setCompleted(true);
-      toast('success', 'Receipt confirmed! ₦5,945,000 released from escrow.');
+      toast('success', 'Receipt confirmed! USDC released from Soroban escrow.');
       setTimeout(() => {
         navigate('/app/dashboard');
       }, 1200);
@@ -49,6 +62,8 @@ export function ConfirmReceiptPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <FreighterBanner />
+
       {/* Back Link */}
       <div>
         <Link
@@ -78,7 +93,7 @@ export function ConfirmReceiptPage() {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3.5 text-xs text-gray-700 flex items-start gap-2">
         <span className="text-gray-900 font-bold">ℹ</span>
         <span>
-          Confirming receipt releases ₦6,002,600 to the supplier and closes this transaction.
+          Confirming receipt releases USDC funds to the supplier and logistics provider from the Soroban escrow contract and closes this transaction.
           Check the goods before you confirm.
         </span>
       </div>
@@ -193,20 +208,20 @@ export function ConfirmReceiptPage() {
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between text-gray-600">
-                <span>Held by AgriFlow</span>
-                <span className="font-medium text-gray-900">₦6,002,600</span>
+                <span>Held in Soroban escrow</span>
+                <span className="font-medium text-gray-900">₦6,002,600 (USDC)</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Released to supplier</span>
-                <span className="font-medium text-gray-900">₦5,760,000</span>
+                <span className="font-medium text-gray-900">₦5,760,000 (USDC)</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Released to logistics</span>
-                <span className="font-medium text-gray-900">₦185,000</span>
+                <span className="font-medium text-gray-900">₦185,000 (USDC)</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-900 pt-3 border-t border-gray-100">
                 <span>Total released</span>
-                <span>₦5,945,000</span>
+                <span>₦5,945,000 (USDC)</span>
               </div>
             </div>
 
@@ -217,8 +232,18 @@ export function ConfirmReceiptPage() {
                 onClick={handleConfirm}
                 className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-40"
               >
-                {confirming ? 'Releasing escrow...' : completed ? 'Receipt Confirmed' : 'Confirm receipt'}
+                {confirming ? 'Releasing on-chain escrow...' : completed ? 'Receipt Confirmed' : 'Confirm receipt & release USDC'}
               </button>
+              {releaseTxHash && (
+                <a
+                  href={stellarExpertLink(releaseTxHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-center text-xs text-blue-600 underline mt-2"
+                >
+                  View release on Stellar Expert ↗
+                </a>
+              )}
               <button
                 type="button"
                 onClick={handleReportIssue}
@@ -233,7 +258,7 @@ export function ConfirmReceiptPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs space-y-2">
             <h3 className="text-xs font-semibold text-gray-700">If something is wrong</h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Reporting an issue moves this transaction to DISPUTED and holds the funds.
+              Reporting an issue moves this transaction to DISPUTED and holds the escrow funds on-chain.
               AgriFlow Operations reviews the evidence and records a decision.
             </p>
           </div>
