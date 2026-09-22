@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT supplier_id FROM supply_listings WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "supplier_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "supplier_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "91b47454d0adafab07ae2f2702f3e8e549f258e2823448cf1d7199400e9cdb56"
+}

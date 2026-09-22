@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, transaction_id, status, actor, actor_role, note, created_at\n           FROM transaction_events WHERE transaction_id = $1 ORDER BY created_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "transaction_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "transaction_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "actor",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "actor"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "actor_role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "actor_role"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "note",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "note"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "transaction_events",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "b63b7f499acfd780e37045eccffbfc4e8be7b72c1bbdd0775117fd6b539401a9"
+}
