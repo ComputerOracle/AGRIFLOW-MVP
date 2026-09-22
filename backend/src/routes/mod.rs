@@ -1,0 +1,32 @@
+pub mod auth;
+pub mod demands;
+pub mod listings;
+pub mod transactions;
+
+use axum::{Router, routing::{get, post}};
+use tower_http::cors::CorsLayer;
+use tower_http::trace::TraceLayer;
+
+use crate::state::AppState;
+
+pub fn build(state: AppState) -> Router {
+    let api = Router::new()
+        .route("/auth/register", post(auth::register))
+        .route("/auth/login", post(auth::login))
+        .route("/auth/me", get(auth::me))
+        .route("/listings", get(listings::list_active).post(listings::create))
+        .route("/listings/mine", get(listings::mine))
+        .route("/listings/{id}", get(listings::get_one).patch(listings::update))
+        .route("/demands", get(demands::list_open).post(demands::create))
+        .route("/demands/mine", get(demands::mine))
+        .route("/demands/{id}", get(demands::get_one))
+        .route("/transactions", get(transactions::list_mine).post(transactions::create))
+        .route("/transactions/{id}", get(transactions::get_one))
+        .route("/transactions/{id}/transition", post(transactions::transition))
+        .with_state(state);
+
+    Router::new()
+        .nest("/api", api)
+        .layer(CorsLayer::permissive())
+        .layer(TraceLayer::new_for_http())
+}

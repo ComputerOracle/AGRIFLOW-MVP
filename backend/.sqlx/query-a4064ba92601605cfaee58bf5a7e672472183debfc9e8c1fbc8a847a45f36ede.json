@@ -1,0 +1,308 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO transactions\n            (id, listing_id, demand_id, buyer_id, buyer_name, supplier_id, supplier_name,\n             commodity, quantity, unit, quality_grade, price_per_unit, total_amount, currency,\n             pickup_location, delivery_location, expected_delivery_date, status)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'PENDING')\n        RETURNING id, listing_id, demand_id, buyer_id, buyer_name, supplier_id, supplier_name,\n                  commodity, quantity, unit, quality_grade, price_per_unit, total_amount, currency,\n                  pickup_location, delivery_location, expected_delivery_date, status, payment_id,\n                  logistics_job_id, dispute_id, created_at, updated_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "listing_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "listing_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "demand_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "demand_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "buyer_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "buyer_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "buyer_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "buyer_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "supplier_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "supplier_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "supplier_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "supplier_name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "commodity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "commodity"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "quantity",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "unit",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "unit"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "quality_grade",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "quality_grade"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "price_per_unit",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "price_per_unit"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "total_amount",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "total_amount"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "currency",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "pickup_location",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "pickup_location"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "delivery_location",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "delivery_location"
+          }
+        }
+      },
+      {
+        "ordinal": 16,
+        "name": "expected_delivery_date",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "expected_delivery_date"
+          }
+        }
+      },
+      {
+        "ordinal": 17,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 18,
+        "name": "payment_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "payment_id"
+          }
+        }
+      },
+      {
+        "ordinal": 19,
+        "name": "logistics_job_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "logistics_job_id"
+          }
+        }
+      },
+      {
+        "ordinal": 20,
+        "name": "dispute_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "dispute_id"
+          }
+        }
+      },
+      {
+        "ordinal": 21,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 22,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "transactions",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Numeric",
+        "Text",
+        "Text",
+        "Numeric",
+        "Numeric",
+        "Text",
+        "Text",
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "a4064ba92601605cfaee58bf5a7e672472183debfc9e8c1fbc8a847a45f36ede"
+}
