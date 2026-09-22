@@ -103,3 +103,76 @@ All routes are under `/api`.
 
 See `.env.example`. `JWT_SECRET` must be changed before any real deployment
 — the example value is a placeholder.
+
+## Live deployment
+
+The API and its database are deployed and running on Railway — this is a
+real, hosted backend, not a local-only project:
+
+- **API**: `https://agriflow-api-production.up.railway.app` (all routes
+  under `/api`, e.g. `/api/listings` — there is no page at `/`, this is a
+  JSON API with no frontend of its own, so hitting the bare domain in a
+  browser correctly 404s)
+- **Database**: managed Postgres 18 on a persistent volume, in the same
+  Railway project as the API (`renewed-nurturing`), reached over Railway's
+  private network — not exposed publicly
+- Both services live in one Railway project with two services:
+  `agriflow-api` (this backend) and `Postgres`
+
+### How it's wired together
+
+- `agriflow-api`'s `DATABASE_URL` variable is set to
+  `${{Postgres.DATABASE_URL}}` — a live reference to the Postgres service's
+  connection string, not a copy-pasted value. If Railway ever rotates the
+  DB credentials, this updates automatically.
+- Migrations run automatically on every boot (`sqlx::migrate!` is embedded
+  into the binary at compile time — the `migrations/` directory doesn't
+  need to exist at runtime, and re-running an already-applied migration is
+  a no-op).
+- The Dockerfile builds in **sqlx offline mode**: `.sqlx/` (committed to
+  this repo) holds a snapshot of every query's expected schema, generated
+  via `cargo sqlx prepare` against a real Postgres instance. This means the
+  Docker build never needs live DB access — required, since Railway's build
+  containers can't reach the database while building. If you add or change
+  any `sqlx::query*!` macro call, you **must** re-run `cargo sqlx prepare`
+  (with a real `DATABASE_URL` in `.env` pointing at a migrated DB) and
+  commit the updated `.sqlx/` files, or the next deploy's build will fail.
+
+### Redeploying
+
+This was deployed via the Railway CLI directly from this directory, **not**
+via a GitHub-connected auto-deploy — so pushing to `main` will not trigger a
+new deployment. To ship a change:
+
+```bash
+cd backend
+railway link -p renewed-nurturing -s agriflow-api -e production   # first time only
+railway up -s agriflow-api -e production
+```
+
+(Wiring up GitHub-triggered auto-deploys instead is a reasonable follow-up —
+`railway service source connect --repo <owner>/<repo> --branch main --service agriflow-api`
+— but wasn't set up here.)
+
+## Handoff: what's next
+
+**The frontend is not connected to this backend yet.** `src/services/*.ts`
+in the React app still read/write `localStorage` exclusively — nothing in
+the UI calls this API. That wiring is intentionally left undone here; it's
+the next piece of work. Roughly, for whoever picks this up:
+
+1. Each `src/services/*.ts` file (`authService`, `supplyService`,
+   `demandService`, `transactionService`, ...) needs its `storageService`
+   calls replaced with `fetch` calls against
+   `https://agriflow-api-production.up.railway.app/api/...` (or a local
+   instance during development).
+2. The JWT returned from `/api/auth/login` / `/api/auth/register` needs
+   somewhere to live client-side (e.g. alongside `AuthSession` in
+   `AppContext`), and every subsequent request needs it attached as
+   `Authorization: Bearer <token>`.
+3. Response shapes already match `src/types/index.ts` field-for-field
+   (camelCase, same ID formats), so this should mostly be a mechanical
+   swap rather than a reshaping exercise — see "Architecture notes" above.
+4. Endpoints not yet built (payments/escrow, logistics jobs, disputes,
+   notifications, audit log, matching) will still need `localStorage` or
+   stubbing until their backend slices exist — see "Not built yet" above.
