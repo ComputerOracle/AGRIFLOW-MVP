@@ -62,7 +62,7 @@ test('buyer-supplier-logistics-admin trade lifecycle', async ({ page, request })
     await page.goto('/app/demands/new');
     await page.getByRole('button', { name: 'Review demand' }).click();
     await page.getByRole('button', { name: 'Submit & Find Matches' }).click();
-    await page.waitForURL('**/app/matches/**', { timeout: 15_000 });
+    await page.waitForURL('**/app/demands', { timeout: 15_000 });
 
     const demands = await apiGet(request, '/demands/mine', buyerReg.token);
     expect(demands.length).toBeGreaterThan(0);

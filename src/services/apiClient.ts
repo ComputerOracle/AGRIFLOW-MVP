@@ -4,7 +4,22 @@
 
 import { storageService, STORE_KEYS } from './storageService';
 
-const BASE_URL = (import.meta.env.VITE_API_URL as string | undefined) ?? 'http://localhost:8080/api';
+function resolveApiUrl(): string {
+  // Explicit VITE_API_URL always wins — required for any production build
+  // (no dev server, so there's no proxy to fall back on).
+  const explicit = import.meta.env.VITE_API_URL as string | undefined;
+  if (explicit) return explicit;
+
+  // No explicit URL: use a same-origin relative path. `npm run dev` proxies
+  // /api to the backend container-side (see vite.config.ts), so the browser
+  // never makes a cross-origin request — this is what makes local dev work
+  // both plain and behind a forwarded dev-container URL (Codespaces), where
+  // a cross-origin request to a separately-forwarded backend port would hit
+  // that port's own private-tunnel auth gate and fail.
+  return '/api';
+}
+
+const BASE_URL = resolveApiUrl();
 
 export function getToken(): string | null {
   return storageService.get<string>(STORE_KEYS.TOKEN);

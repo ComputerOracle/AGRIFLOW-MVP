@@ -36,7 +36,7 @@ export function CreateDemandPage() {
     setLoading(true);
     try {
       const budgetAvg = budgetMax ? Number(budgetMax) * Number(quantity) : 0;
-      const demand = await demandService.create({
+      await demandService.create({
         commodity,
         quantity: Number(quantity),
         unit,
@@ -48,10 +48,13 @@ export function CreateDemandPage() {
         notes,
       });
 
-      toast('success', 'Demand submitted successfully! Matching with active suppliers.');
+      toast('success', 'Demand submitted successfully! Find matching supply from your demands list.');
       setStep(3);
       setTimeout(() => {
-        navigate(`/app/matches/${demand.id}`);
+        // /app/matches/:id is a static demo page with hardcoded fake IDs,
+        // not wired to real data — /app/demands has a working "Find
+        // Matches" action against this real demand instead.
+        navigate('/app/demands');
       }, 1200);
     } catch (err: unknown) {
       toast('error', err instanceof Error ? err.message : 'Failed to submit demand.');
