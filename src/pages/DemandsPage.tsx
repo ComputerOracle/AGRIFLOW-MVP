@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, FileText, Search, CheckCircle2, Building2 } from 'lucide-react';
 import { demandService } from '../services/demandService';
@@ -10,24 +10,42 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Card } from '../components/ui/Card';
 import { formatCurrency, formatDate, formatCommodity, COMMODITY_ICONS } from '../utils/format';
-import type { DemandRequest, Match } from '../types';
+import type { DemandRequest, Match, SupplyListing } from '../types';
 
 export function DemandsPage() {
   const { session } = useApp();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [matching, setMatching] = useState<string | null>(null);
-  const [matchResults, setMatchResults] = useState<{ demandId: string; matches: Match[] } | null>(null);
+  const [matchResults, setMatchResults] = useState<{ demandId: string; matches: Match[]; listingsById: Record<string, SupplyListing> } | null>(null);
+  const [demands, setDemands] = useState<DemandRequest[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!session) return null;
-  const isBuyer = session.role === 'buyer';
-  const demands = isBuyer ? demandService.getForBuyer(session.userId) : demandService.getAll();
+  const isBuyer = session?.role === 'buyer';
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setDemands(isBuyer ? await demandService.getForBuyer() : await demandService.getAll());
+    } catch (e: unknown) {
+      toast('error', e instanceof Error ? e.message : 'Failed to load demands.');
+    } finally {
+      setLoading(false);
+    }
+  }, [isBuyer, toast]);
+
+  useEffect(() => { load(); }, [load]);
 
   const runMatch = async (demand: DemandRequest) => {
     setMatching(demand.id);
     try {
       const matches = await matchingService.findMatchesForDemand(demand);
-      setMatchResults({ demandId: demand.id, matches });
+      const listingsById: Record<string, SupplyListing> = {};
+      await Promise.all(matches.map(async (m) => {
+        const listing = await supplyService.getById(m.listingId);
+        if (listing) listingsById[m.listingId] = listing;
+      }));
+      setMatchResults({ demandId: demand.id, matches, listingsById });
       if (matches.length === 0) toast('info', 'No strong matches found for this demand.');
       else toast('success', `${matches.length} compatible listing(s) found.`);
     } catch (e: unknown) {
@@ -36,6 +54,8 @@ export function DemandsPage() {
       setMatching(null);
     }
   };
+
+  if (!session) return null;
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -57,7 +77,9 @@ export function DemandsPage() {
         )}
       </div>
 
-      {demands.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Loading demands...</div>
+      ) : demands.length === 0 ? (
         <EmptyState
           icon={<FileText className="w-7 h-7" />}
           title="No demand requests yet"
@@ -148,7 +170,7 @@ export function DemandsPage() {
                     </div>
                     <div className="grid sm:grid-cols-2 gap-2">
                       {matchResults.matches.map((m) => {
-                        const listing = supplyService.getById(m.listingId);
+                        const listing = matchResults.listingsById[m.listingId];
                         if (!listing) return null;
                         return (
                           <div

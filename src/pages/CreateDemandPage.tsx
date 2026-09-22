@@ -37,8 +37,6 @@ export function CreateDemandPage() {
     try {
       const budgetAvg = budgetMax ? Number(budgetMax) * Number(quantity) : 0;
       const demand = await demandService.create({
-        buyerId: session.userId,
-        buyerName: session.name,
         commodity,
         quantity: Number(quantity),
         unit,
