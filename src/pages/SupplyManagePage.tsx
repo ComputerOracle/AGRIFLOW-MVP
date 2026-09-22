@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Package, Power } from 'lucide-react';
 import { supplyService } from '../services/supplyService';
@@ -9,26 +9,38 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Card } from '../components/ui/Card';
 import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { formatCurrency, formatDate, formatCommodity, COMMODITY_ICONS } from '../utils/format';
+import type { ListingStatus, SupplyListing } from '../types';
 
 export function SupplyManagePage() {
   const { session } = useApp();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [toggling, setToggling] = useState<string | null>(null);
+  const [listings, setListings] = useState<SupplyListing[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (!session) return null;
-  const listings = supplyService.getForSupplier(session.userId);
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setListings(await supplyService.getForSupplier());
+    } catch (e: any) { toast('error', e.message); }
+    finally { setLoading(false); }
+  }, [toast]);
 
-  const toggleStatus = async (listingId: string, current: string) => {
+  useEffect(() => { load(); }, [load]);
+
+  const toggleStatus = async (listingId: string, current: ListingStatus) => {
     setToggling(listingId);
     try {
-      const newStatus = current === 'active' ? 'inactive' : 'active';
-      await supplyService.setStatus(listingId, session.userId, newStatus as any);
+      const newStatus: ListingStatus = current === 'active' ? 'inactive' : 'active';
+      await supplyService.setStatus(listingId, newStatus);
       toast('success', `Listing ${newStatus === 'active' ? 'activated' : 'deactivated'}.`);
-      window.location.reload();
+      await load();
     } catch (e: any) { toast('error', e.message); }
     finally { setToggling(null); }
   };
+
+  if (!session) return null;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -42,7 +54,9 @@ export function SupplyManagePage() {
         </Button>
       </div>
 
-      {listings.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Loading listings...</div>
+      ) : listings.length === 0 ? (
         <EmptyState
           icon={<Package className="w-7 h-7" />}
           title="No supply listings"

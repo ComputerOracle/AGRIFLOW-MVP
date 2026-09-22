@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { supplyService } from '../services/supplyService';
-import { storageService, STORE_KEYS } from '../services/storageService';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../components/ui/Toast';
 import { Button } from '../components/ui/Button';
@@ -25,9 +24,6 @@ export function CreateSupplyPage() {
     description: '',
   });
 
-  const users = storageService.get<import('../types').User[]>(STORE_KEYS.USERS) ?? [];
-  const user = users.find((u) => u.id === session?.userId);
-
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,9 +36,6 @@ export function CreateSupplyPage() {
     setLoading(true);
     try {
       const l = await supplyService.create({
-        supplierId: session.userId,
-        supplierName: user?.organizationName ?? session.name,
-        supplierVerified: user?.verified ?? false,
         commodity: form.commodity,
         quantity: Number(form.quantity),
         unit: form.unit,
