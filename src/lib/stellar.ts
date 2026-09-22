@@ -1,126 +1,175 @@
 import {
+  BASE_FEE,
   Contract,
+  Networks,
   rpc,
   TransactionBuilder,
-  Networks,
-  BASE_FEE,
   xdr,
 } from '@stellar/stellar-sdk';
+import { Buffer } from 'buffer';
 import {
+  getAddress,
+  getNetworkDetails,
+  isConnected,
   requestAccess,
   signTransaction,
-  isConnected,
-  getAddress,
 } from '@stellar/freighter-api';
-import { Buffer } from 'buffer';
 
-const RPC_URL = 'https://soroban-testnet.stellar.org';
-const NETWORK = Networks.TESTNET;
-const server = new rpc.Server(RPC_URL);
+export const CONTRACT_ID: string = (import.meta.env.VITE_CONTRACT_ID as string | undefined) ?? '';
+export const USDC_CONTRACT: string = (import.meta.env.VITE_USDC_CONTRACT as string | undefined) ?? '';
+export const RPC_URL = 'https://soroban-testnet.stellar.org';
+export const NETWORK = Networks.TESTNET;
+export const NETWORK_PASSPHRASE = 'Test SDF Network ; September 2015';
 
-// ── Contract addresses from environment variables ─────────────
-export const CONTRACT_ID = import.meta.env.VITE_CONTRACT_ID ?? '';
-export const USDC_CONTRACT = import.meta.env.VITE_USDC_CONTRACT ?? '';
-// ─────────────────────────────────────────────────────────────
-
-/** Connect Freighter and return the public key */
-export async function connectWallet(): Promise<string> {
-  const connected = await isConnected();
-  if (!connected) {
-    throw new Error('Freighter not installed. Get it at freighter.app');
-  }
-  const res = await requestAccess();
-  if (res && 'error' in res && res.error) {
-    throw new Error(String(res.error));
-  }
-  if (res && 'address' in res && res.address) {
-    return res.address;
-  }
-  throw new Error('Could not get address from Freighter');
+export interface InvokeContractOptions {
+  maxAttempts?: number;
+  pollIntervalMs?: number;
 }
 
-/** Return currently connected public key without prompting */
-export async function getWalletKey(): Promise<string | null> {
-  const connected = await isConnected();
-  if (!connected) return null;
+export function stellarExpertLink(hash: string): string {
+  return `https://stellar.expert/explorer/testnet/tx/${hash}`;
+}
+
+function assertNoFreighterError<T>(res: T, label: string): void {
+  if (
+    res &&
+    typeof res === 'object' &&
+    'error' in res &&
+    (res as { error?: unknown }).error
+  ) {
+    throw new Error(`${label}: ${String((res as { error?: unknown }).error)}`);
+  }
+}
+
+export async function isFreighterInstalled(): Promise<boolean> {
   try {
+    const res = await isConnected();
+    if (typeof res === 'boolean') return res;
+    assertNoFreighterError(res, 'Freighter not responding');
+    return Boolean((res as { isConnected?: boolean }).isConnected);
+  } catch {
+    return false;
+  }
+}
+
+export async function connectWallet(): Promise<string> {
+  if (!(await isFreighterInstalled())) {
+    throw new Error('Freighter extension not detected in browser.');
+  }
+  try {
+    const res = await requestAccess();
+    assertNoFreighterError(res, 'Freighter connection request denied');
+    if (res.address) return res.address;
+    throw new Error('Unable to read public key from Freighter response.');
+  } catch (err: unknown) {
+    if (err instanceof Error) throw err;
+    throw new Error('Connection request denied in Freighter. Approve the request to continue.');
+  }
+}
+
+export async function getWalletKey(): Promise<string | null> {
+  try {
+    if (!(await isFreighterInstalled())) return null;
     const res = await getAddress();
-    if (res && 'address' in res && res.address) {
-      return res.address;
-    }
-    return null;
+    if (res && typeof res === 'object' && 'error' in res && res.error) return null;
+    return res.address ?? null;
   } catch {
     return null;
   }
 }
 
-/** Convert our string txId (e.g. "TXN-4821") to a 32-byte ScVal for Soroban */
-export async function txIdToScVal(txId: string): Promise<xdr.ScVal> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txId));
-  return xdr.ScVal.scvBytes(Buffer.from(buf));
+export async function checkNetwork(): Promise<boolean> {
+  try {
+    const details = await getNetworkDetails();
+    return details.network === 'TESTNET';
+  } catch {
+    return false;
+  }
 }
 
-/** Build → simulate → sign → submit a contract call */
+export async function txIdToScVal(txId: string): Promise<xdr.ScVal> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txId));
+  return xdr.ScVal.scvBytes(Buffer.from(digest));
+}
+
 export async function invokeContract(
   functionName: string,
   args: xdr.ScVal[],
   signerPublicKey: string,
+  options: InvokeContractOptions = {},
 ): Promise<string> {
   if (!CONTRACT_ID) {
-    throw new Error('Contract ID not configured. Please set VITE_CONTRACT_ID in .env.local');
+    throw new Error(
+      'Contract not configured. Set VITE_CONTRACT_ID in the project .env.local file before invoking contracts.',
+    );
   }
+
+  const maxAttempts = options.maxAttempts ?? 25;
+  const pollIntervalMs = options.pollIntervalMs ?? 1500;
+
+  const server = new rpc.Server(RPC_URL);
 
   const account = await server.getAccount(signerPublicKey);
   const contract = new Contract(CONTRACT_ID);
 
   const tx = new TransactionBuilder(account, {
     fee: BASE_FEE,
-    networkPassphrase: NETWORK,
+    networkPassphrase: NETWORK_PASSPHRASE,
   })
-    .addOperation(contract.call(functionName, ...args))
     .setTimeout(60)
+    .addOperation(contract.call(functionName, ...args))
     .build();
 
-  // Simulate so Soroban can compute auth entries + resource fees
-  const sim = await server.simulateTransaction(tx);
-  if (rpc.Api.isSimulationError(sim)) {
-    throw new Error(`Simulation failed: ${sim.error}`);
+  const simulation = await server.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(simulation)) {
+    throw new Error(`Simulation Failed: ${simulation.error}`);
   }
 
-  const preparedTx = rpc.assembleTransaction(tx, sim).build();
+  const prepared = rpc.assembleTransaction(tx, simulation).build();
 
-  // Sign with Freighter
-  const signRes = await signTransaction(preparedTx.toXDR(), {
-    networkPassphrase: NETWORK,
+  const signRes = await signTransaction(prepared.toXDR(), {
+    networkPassphrase: NETWORK_PASSPHRASE,
   });
+  const signedXdr =
+    signRes && typeof signRes === 'object' && 'signedTxXdr' in signRes
+      ? signRes.signedTxXdr
+      : (signRes as unknown as string);
 
-  if (signRes && 'error' in signRes && signRes.error) {
-    throw new Error(`Signing rejected: ${signRes.error}`);
+  const sendResponse = await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, NETWORK));
+  if (sendResponse.status === 'ERROR') {
+    const detail = 'errorResult' in sendResponse ? String(sendResponse.errorResult) : '';
+    throw new Error(
+      `Transaction submission failed. Hash: ${sendResponse.hash}.` +
+        (detail ? ` Result XDR: ${detail}` : ' See Freighter / Soroban RPC error logs for details.'),
+    );
   }
 
-  const signedXdr = signRes && 'signedTxXdr' in signRes ? signRes.signedTxXdr : (signRes as unknown as string);
-
-  // Submit
-  const result = await server.sendTransaction(
-    TransactionBuilder.fromXDR(signedXdr, NETWORK)
-  );
-
-  if (result.status === 'ERROR') {
-    throw new Error(`Submit failed: ${JSON.stringify(result)}`);
-  }
-
-  // Poll until confirmed
-  const hash = result.hash;
-  for (let i = 0; i < 20; i++) {
-    await new Promise((r) => setTimeout(r, 1500));
-    const status = await server.getTransaction(hash);
-    if (status.status === rpc.Api.GetTransactionStatus.SUCCESS) return hash;
-    if (status.status === rpc.Api.GetTransactionStatus.FAILED) {
-      throw new Error('Transaction failed on-chain');
-    }
-  }
-  throw new Error('Transaction timed out');
+  return pollTransactionStatus(server, sendResponse.hash, maxAttempts, pollIntervalMs);
 }
 
-export const stellarExpertLink = (hash: string) =>
-  `https://stellar.expert/explorer/testnet/tx/${hash}`;
+async function pollTransactionStatus(
+  server: rpc.Server,
+  hash: string,
+  maxAttempts: number,
+  pollIntervalMs: number,
+): Promise<string> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await sleep(Math.min(pollIntervalMs * Math.pow(2, attempt), 30_000));
+
+    const result = await server.getTransaction(hash);
+    if (result.status === rpc.Api.GetTransactionStatus.SUCCESS) {
+      return hash;
+    }
+    if (result.status === rpc.Api.GetTransactionStatus.FAILED) {
+      throw new Error(`Transaction failed on-chain. ${stellarExpertLink(hash)}`);
+    }
+  }
+
+  throw new Error(
+    `Transaction did not finalize within ${maxAttempts} polling attempts. ${stellarExpertLink(hash)}`,
+  );
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
