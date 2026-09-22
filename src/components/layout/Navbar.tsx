@@ -16,7 +16,6 @@ function getNavItems(role: UserRole): NavItem[] {
       return [
         { label: 'Dashboard', path: '/app/dashboard' },
         { label: 'Demands', path: '/app/demands' },
-        { label: 'Matches', path: '/app/matches' },
         { label: 'Transactions', path: '/app/transactions' },
         { label: 'Deliveries', path: '/app/deliveries' },
       ];
