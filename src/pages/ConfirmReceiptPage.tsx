@@ -1,8 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2, ExternalLink, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../components/ui/Toast';
+import { FreighterBanner } from '../components/ui/FreighterBanner';
 import { transactionService } from '../services/transactionService';
+import {
+  connectWallet,
+  getWalletKey,
+  invokeContract,
+  stellarExpertLink,
+  txIdToScVal,
+} from '../lib/stellar';
 
 export function ConfirmReceiptPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,17 +22,28 @@ export function ConfirmReceiptPage() {
   const [qtyChecked, setQtyChecked] = useState(true);
   const [qualityChecked, setQualityChecked] = useState(true);
   const [undamagedChecked, setUndamagedChecked] = useState(true);
-  const [confirming, setConfirming] = useState(false);
   const [completed, setCompleted] = useState(false);
+  const [releaseTxHash, setReleaseTxHash] = useState<string | null>(null);
+  const [isReleasing, setIsReleasing] = useState(false);
+  const [releaseError, setReleaseError] = useState<string | null>(null);
 
   const canConfirm = qtyChecked && qualityChecked && undamagedChecked;
 
-  const handleConfirm = async () => {
+  const handleConfirmRelease = async () => {
     if (!session || !canConfirm) return;
-    setConfirming(true);
+    const txId = id || 'TXN-4821';
+    setReleaseError(null);
+    setIsReleasing(true);
     try {
+      let pubKey = await getWalletKey();
+      if (!pubKey) pubKey = await connectWallet();
+
+      const txIdVal = await txIdToScVal(txId);
+      const hash = await invokeContract('release', [txIdVal], pubKey);
+      setReleaseTxHash(hash);
+
       await transactionService.transition({
-        transactionId: id || 'TXN-4821',
+        transactionId: txId,
         to: 'COMPLETED',
         actorId: session.userId,
         actorName: session.name,
@@ -31,14 +51,14 @@ export function ConfirmReceiptPage() {
         note: 'Buyer confirmed receipt of goods. Escrow released to supplier and logistics.',
       });
       setCompleted(true);
-      toast('success', 'Receipt confirmed! ₦5,945,000 released from escrow.');
+      toast('success', `Receipt confirmed! Escrow released on-chain. Hash: ${hash.slice(0, 8)}…`);
       setTimeout(() => {
         navigate('/app/dashboard');
-      }, 1200);
+      }, 2000);
     } catch (err: unknown) {
-      toast('error', err instanceof Error ? err.message : 'Confirmation failed.');
+      setReleaseError(err instanceof Error ? err.message : 'Escrow release failed. Please try again.');
     } finally {
-      setConfirming(false);
+      setIsReleasing(false);
     }
   };
 
@@ -49,6 +69,15 @@ export function ConfirmReceiptPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <FreighterBanner />
+
+      {releaseError && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border bg-red-50 border-red-200 text-red-900">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <p className="text-sm font-medium">{releaseError}</p>
+        </div>
+      )}
+
       {/* Back Link */}
       <div>
         <Link
@@ -213,11 +242,20 @@ export function ConfirmReceiptPage() {
             <div className="space-y-2 pt-2">
               <button
                 type="button"
-                disabled={!canConfirm || confirming || completed}
-                onClick={handleConfirm}
-                className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-40"
+                disabled={!canConfirm || isReleasing || completed}
+                onClick={handleConfirmRelease}
+                className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-40 inline-flex items-center justify-center gap-2"
               >
-                {confirming ? 'Releasing escrow...' : completed ? 'Receipt Confirmed' : 'Confirm receipt'}
+                {isReleasing ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    Releasing Escrow on Chain...
+                  </>
+                ) : completed ? (
+                  'Receipt Confirmed'
+                ) : (
+                  'Confirm receipt'
+                )}
               </button>
               <button
                 type="button"
@@ -239,6 +277,24 @@ export function ConfirmReceiptPage() {
           </div>
         </div>
       </div>
+
+      {releaseTxHash && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border bg-green-50 border-green-200 text-green-900">
+          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="text-xs">
+            <p className="font-semibold">Escrow released on Stellar Testnet</p>
+            <a
+              href={stellarExpertLink(releaseTxHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-green-800 underline underline-offset-2 break-all font-mono"
+            >
+              {stellarExpertLink(releaseTxHash)}
+              <ExternalLink className="w-3 h-3 shrink-0" />
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

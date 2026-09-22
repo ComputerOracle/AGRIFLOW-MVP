@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useToast } from '../components/ui/Toast';
+import { FreighterBanner } from '../components/ui/FreighterBanner';
 import { transactionService } from '../services/transactionService';
 import { paymentService } from '../services/paymentService';
+import {
+  CONTRACT_ID,
+  connectWallet,
+  getWalletKey,
+  invokeContract,
+  stellarExpertLink,
+  txIdToScVal,
+} from '../lib/stellar';
 import type { Transaction } from '../types';
 
 export function CompletePaymentPage() {
@@ -11,9 +21,13 @@ export function CompletePaymentPage() {
   const navigate = useNavigate();
   const { session } = useApp();
   const { toast } = useToast();
-  const [method, setMethod] = useState<'bank' | 'card' | 'wallet'>('bank');
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card' | 'stellar'>('bank');
   const [paying, setPaying] = useState(false);
   const [tx, setTx] = useState<Transaction | null>(null);
+  const [walletKey, setWalletKey] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const transaction = transactionService.getById(id || 'TXN-4821');
@@ -21,6 +35,12 @@ export function CompletePaymentPage() {
       setTx(transaction);
     }
   }, [id]);
+
+  useEffect(() => {
+    getWalletKey()
+      .then(setWalletKey)
+      .catch(() => setWalletKey(null));
+  }, []);
 
   const goodsSubtotal = 5760000;
   const logisticsCost = 185000;
@@ -52,8 +72,58 @@ export function CompletePaymentPage() {
     }
   };
 
+  const handleConnectWallet = async () => {
+    setErrorMessage(null);
+    try {
+      const pk = await connectWallet();
+      setWalletKey(pk);
+      toast('success', 'Freighter wallet connected.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to connect Freighter.');
+    }
+  };
+
+  const handlePayStellar = async () => {
+    const txId = tx?.id || 'TXN-4821';
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      const pubKey = await connectWallet();
+      setWalletKey(pubKey);
+
+      const txIdVal = await txIdToScVal(txId);
+      const hash = await invokeContract('deposit', [txIdVal], pubKey);
+      setTxHash(hash);
+
+      const payment = await paymentService.initiate({
+        transactionId: txId,
+        payerId: session?.userId ?? '',
+        payerName: session?.name ?? 'Buyer',
+        amount: totalDue,
+        currency: 'NGN',
+      });
+      await paymentService.confirm(payment.id, session?.userId ?? '', session?.name ?? '');
+
+      toast('success', `Escrow deposit confirmed on Stellar Testnet. Hash: ${hash.slice(0, 8)}…`);
+      setTimeout(() => navigate(`/app/transactions/${txId}/track`), 2000);
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Stellar payment failed. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      <FreighterBanner />
+
+      {errorMessage && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border bg-red-50 border-red-200 text-red-900">
+          <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+          <p className="text-sm font-medium">{errorMessage}</p>
+        </div>
+      )}
+
       {/* Back Link */}
       <div>
         <Link
@@ -107,7 +177,7 @@ export function CompletePaymentPage() {
               {/* Bank Transfer */}
               <label
                 className={`block border rounded-lg p-4 cursor-pointer transition-all ${
-                  method === 'bank'
+                  paymentMethod === 'bank'
                     ? 'border-gray-800 bg-gray-50/50 shadow-xs'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
@@ -118,8 +188,8 @@ export function CompletePaymentPage() {
                       type="radio"
                       name="paymentMethod"
                       value="bank"
-                      checked={method === 'bank'}
-                      onChange={() => setMethod('bank')}
+                      checked={paymentMethod === 'bank'}
+                      onChange={() => setPaymentMethod('bank')}
                       className="mt-0.5 accent-gray-900"
                     />
                     <div>
@@ -136,7 +206,7 @@ export function CompletePaymentPage() {
               {/* Debit Card */}
               <label
                 className={`block border rounded-lg p-4 cursor-pointer transition-all ${
-                  method === 'card'
+                  paymentMethod === 'card'
                     ? 'border-gray-800 bg-gray-50/50 shadow-xs'
                     : 'border-gray-200 hover:border-gray-300'
                 }`}
@@ -147,8 +217,8 @@ export function CompletePaymentPage() {
                       type="radio"
                       name="paymentMethod"
                       value="card"
-                      checked={method === 'card'}
-                      onChange={() => setMethod('card')}
+                      checked={paymentMethod === 'card'}
+                      onChange={() => setPaymentMethod('card')}
                       className="mt-0.5 accent-gray-900"
                     />
                     <div>
@@ -160,23 +230,52 @@ export function CompletePaymentPage() {
                 </div>
               </label>
 
-              {/* AgriFlow Wallet */}
-              <label className="block border border-gray-200 rounded-lg p-4 opacity-60 cursor-not-allowed bg-gray-50/50">
-                <div className="flex items-center justify-between">
+              {/* USDC (Soroban Escrow) */}
+              <label
+                className={`block border rounded-lg p-4 cursor-pointer transition-all ${
+                  paymentMethod === 'stellar'
+                    ? 'border-gray-800 bg-gray-50/50 shadow-xs'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
                   <div className="flex items-start gap-3">
                     <input
                       type="radio"
                       name="paymentMethod"
-                      value="wallet"
-                      disabled
-                      className="mt-0.5"
+                      value="stellar"
+                      checked={paymentMethod === 'stellar'}
+                      onChange={() => setPaymentMethod('stellar')}
+                      className="mt-0.5 accent-gray-900"
                     />
                     <div>
-                      <div className="text-xs font-bold text-gray-900">AgriFlow wallet</div>
-                      <div className="text-xs text-gray-500 mt-0.5">Balance: ₦0.00 — insufficient</div>
+                      <div className="text-xs font-bold text-gray-900">Pay with USDC (Soroban Escrow)</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Escrow on Stellar Testnet · funds released on delivery confirmation
+                      </div>
+                      {walletKey ? (
+                        <div className="inline-flex items-center gap-2 mt-2 px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-800 text-xs font-medium">
+                          <span className="font-mono">{truncateKey(walletKey)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Connected
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleConnectWallet}
+                          disabled={isSubmitting}
+                          className="mt-2 px-3 py-1.5 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                        >
+                          Connect Freighter
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <span className="text-xs font-medium text-gray-400">Unavailable</span>
+                  <span className="text-xs font-medium text-gray-500">
+                    {CONTRACT_ID ? 'Testnet' : 'Unconfigured'}
+                  </span>
                 </div>
               </label>
             </div>
@@ -236,11 +335,17 @@ export function CompletePaymentPage() {
 
             <button
               type="button"
-              disabled={paying}
-              onClick={handlePay}
+              disabled={paying || isSubmitting || (paymentMethod === 'stellar' && !CONTRACT_ID)}
+              onClick={paymentMethod === 'stellar' ? handlePayStellar : handlePay}
               className="w-full mt-2 py-3 px-4 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-50"
             >
-              {paying ? 'Securing funds in escrow...' : `Pay ₦${totalDue.toLocaleString()}`}
+              {isSubmitting
+                ? 'Depositing to Soroban escrow…'
+                : paying
+                  ? 'Securing funds in escrow...'
+                  : paymentMethod === 'stellar'
+                    ? `Deposit ${totalDue.toLocaleString()} USDC into escrow`
+                    : `Pay ₦${totalDue.toLocaleString()}`}
             </button>
 
             <p className="text-[11px] text-gray-400 text-center leading-relaxed">
@@ -250,6 +355,28 @@ export function CompletePaymentPage() {
           </div>
         </div>
       </div>
+
+      {txHash && (
+        <div className="flex items-start gap-3 px-4 py-3 rounded-xl border bg-green-50 border-green-200 text-green-900">
+          <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
+          <div className="text-xs">
+            <p className="font-semibold">Escrow deposit broadcast on Stellar Testnet</p>
+            <a
+              href={stellarExpertLink(txHash)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-green-800 underline underline-offset-2 break-all font-mono"
+            >
+              {stellarExpertLink(txHash)}
+            </a>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function truncateKey(key: string): string {
+  if (key.length <= 10) return key;
+  return `${key.slice(0, 4)}…${key.slice(-4)}`;
 }
