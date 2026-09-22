@@ -45,7 +45,10 @@ export function CompletePaymentPage() {
   const goodsSubtotal = 5760000;
   const logisticsCost = 185000;
   const platformFee = 57600;
-  const totalDue = goodsSubtotal + logisticsCost + platformFee; // 6,002,600
+  const totalDue = goodsSubtotal + logisticsCost + platformFee; // 6,002,600 NGN
+  // 1 USDC ≈ 1,620 NGN (Stellar testnet reference rate)
+  const NGN_PER_USDC = 1620;
+  const totalDueUSDC = parseFloat((totalDue / NGN_PER_USDC).toFixed(2));
 
   const handlePay = async () => {
     if (!session) return;
@@ -99,7 +102,7 @@ export function CompletePaymentPage() {
         transactionId: txId,
         payerId: session?.userId ?? '',
         payerName: session?.name ?? 'Buyer',
-        amount: totalDue,
+        amount: totalDueUSDC,
         currency: 'USDC',
       });
       await paymentService.confirm(payment.id, session?.userId ?? '', session?.name ?? '');
@@ -331,6 +334,12 @@ export function CompletePaymentPage() {
                 <span>Total due</span>
                 <span>₦{totalDue.toLocaleString()}</span>
               </div>
+              {paymentMethod === 'stellar' && (
+                <div className="flex justify-between text-xs text-gray-500 pt-1">
+                  <span>≈ USDC equivalent</span>
+                  <span className="font-semibold text-gray-700">{totalDueUSDC.toLocaleString()} USDC</span>
+                </div>
+              )}
             </div>
 
             <button
@@ -344,7 +353,7 @@ export function CompletePaymentPage() {
                 : paying
                   ? 'Securing funds in escrow...'
                   : paymentMethod === 'stellar'
-                    ? `Deposit ${totalDue.toLocaleString()} USDC into escrow`
+                    ? `Deposit ${totalDueUSDC.toLocaleString()} USDC into escrow`
                     : `Pay ₦${totalDue.toLocaleString()}`}
             </button>
 

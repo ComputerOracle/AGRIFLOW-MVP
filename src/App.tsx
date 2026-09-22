@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { ToastProvider } from './components/ui/Toast';
 import { AppLayout } from './components/layout/AppLayout';
 import { LandingPage } from './pages/LandingPage';
@@ -107,11 +108,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppProvider>
-        <ToastProvider>
-          <AppRoutes />
-        </ToastProvider>
-      </AppProvider>
+      <LanguageProvider>
+        <AppProvider>
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
+        </AppProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }
