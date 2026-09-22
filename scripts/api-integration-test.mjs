@@ -146,6 +146,33 @@ async function main() {
   const badStatus = await req(`/transactions/${txn.body.id}/transition`, { method: 'POST', headers: authHeader(supplierToken), body: JSON.stringify({ to: 'NOT_A_REAL_STATUS' }) });
   check('transition to unknown status -> 400', badStatus.status === 400, `got ${badStatus.status}`);
 
+  // --- Mock escrow payment (PAYMENT_CONFIRMED/LOGISTICS_PENDING require a
+  // system actor no real JWT can present — these are the one legitimate,
+  // buyer-scoped path there; see backend/src/routes/transactions.rs) ---
+  console.log('\nmock payment:');
+  const toPay = await req(`/transactions/${txn.body.id}/transition`, { method: 'POST', headers: authHeader(buyerToken), body: JSON.stringify({ to: 'PAYMENT_PENDING' }) });
+  check('buyer -> PAYMENT_PENDING -> 200', toPay.status === 200, `got ${toPay.status}`);
+
+  const wrongPayer = await req(`/transactions/${txn.body.id}/payment/confirm`, { method: 'POST', headers: authHeader(supplierToken) });
+  check('supplier confirming payment -> 403 (not the buyer)', wrongPayer.status === 403, `got ${wrongPayer.status}`);
+
+  const noAuthConfirm = await req(`/transactions/${txn.body.id}/payment/confirm`, { method: 'POST' });
+  check('confirm payment without auth -> 401', noAuthConfirm.status === 401, `got ${noAuthConfirm.status}`);
+
+  const confirmed = await req(`/transactions/${txn.body.id}/payment/confirm`, { method: 'POST', headers: authHeader(buyerToken) });
+  check('buyer confirms payment -> 200, jumps to LOGISTICS_PENDING', confirmed.status === 200 && confirmed.body.status === 'LOGISTICS_PENDING', `got ${confirmed.status} ${confirmed.body?.status}`);
+  check('confirm payment history includes PAYMENT_CONFIRMED then LOGISTICS_PENDING', confirmed.body.history.slice(-2).map((e) => e.status).join(',') === 'PAYMENT_CONFIRMED,LOGISTICS_PENDING');
+
+  const reconfirm = await req(`/transactions/${txn.body.id}/payment/confirm`, { method: 'POST', headers: authHeader(buyerToken) });
+  check('confirming an already-settled payment -> 409', reconfirm.status === 409, `got ${reconfirm.status}`);
+
+  // Separate transaction for the payment-failure path.
+  const txn2 = await req('/transactions', { method: 'POST', headers: authHeader(buyerToken), body: JSON.stringify({ listingId: listing.body.id, quantity: 1, deliveryLocation: 'Ikeja, Lagos', expectedDeliveryDate: new Date(Date.now() + 864e6).toISOString() }) });
+  await req(`/transactions/${txn2.body.id}/transition`, { method: 'POST', headers: authHeader(supplierToken), body: JSON.stringify({ to: 'ACCEPTED' }) });
+  await req(`/transactions/${txn2.body.id}/transition`, { method: 'POST', headers: authHeader(buyerToken), body: JSON.stringify({ to: 'PAYMENT_PENDING' }) });
+  const failed = await req(`/transactions/${txn2.body.id}/payment/fail`, { method: 'POST', headers: authHeader(buyerToken), body: JSON.stringify({ reason: 'Insufficient funds (integration test).' }) });
+  check('buyer fails payment -> 200, PAYMENT_FAILED', failed.status === 200 && failed.body.status === 'PAYMENT_FAILED', `got ${failed.status} ${failed.body?.status}`);
+
   // --- Summary ---
   console.log(`\n${pass} passed, ${fail} failed`);
   if (fail > 0) {
