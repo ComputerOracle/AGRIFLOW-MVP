@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, ExternalLink, Wallet } from 'lucide-react';
-import { checkNetwork, getWalletKey } from '../../lib/stellar';
-import { getNetworkDetails, isConnected } from '@stellar/freighter-api';
+import { checkNetwork, getWalletKey, isFreighterInstalled } from '../../lib/stellar';
+import { getNetworkDetails } from '@stellar/freighter-api';
 
 type WalletStatus = 'checking' | 'not-installed' | 'not-connected' | 'wrong-network' | 'connected';
 
@@ -17,7 +17,7 @@ export function FreighterBanner({ showConnectedBadge = true, className = '' }: P
 
   const verifyWallet = useCallback(async () => {
     try {
-      if (!(await isConnected())) {
+      if (!(await isFreighterInstalled())) {
         setStatus('not-installed');
         return;
       }

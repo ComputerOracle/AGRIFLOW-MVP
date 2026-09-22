@@ -48,7 +48,7 @@ export function ConfirmReceiptPage() {
         actorId: session.userId,
         actorName: session.name,
         actorRole: 'buyer',
-        note: 'Buyer confirmed receipt of goods. Escrow released to supplier and logistics.',
+        note: 'Buyer confirmed receipt. On-chain escrow released on Stellar.',
       });
       setCompleted(true);
       toast('success', `Receipt confirmed! Escrow released on-chain. Hash: ${hash.slice(0, 8)}…`);
@@ -107,7 +107,7 @@ export function ConfirmReceiptPage() {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-3.5 text-xs text-gray-700 flex items-start gap-2">
         <span className="text-gray-900 font-bold">ℹ</span>
         <span>
-          Confirming receipt releases ₦6,002,600 to the supplier and closes this transaction.
+          Confirming receipt releases USDC funds to the supplier and logistics provider from the Soroban escrow contract and closes this transaction.
           Check the goods before you confirm.
         </span>
       </div>
@@ -222,20 +222,20 @@ export function ConfirmReceiptPage() {
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between text-gray-600">
-                <span>Held by AgriFlow</span>
-                <span className="font-medium text-gray-900">₦6,002,600</span>
+                <span>Held in Soroban escrow</span>
+                <span className="font-medium text-gray-900">₦6,002,600 (USDC)</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Released to supplier</span>
-                <span className="font-medium text-gray-900">₦5,760,000</span>
+                <span className="font-medium text-gray-900">₦5,760,000 (USDC)</span>
               </div>
               <div className="flex justify-between text-gray-600">
                 <span>Released to logistics</span>
-                <span className="font-medium text-gray-900">₦185,000</span>
+                <span className="font-medium text-gray-900">₦185,000 (USDC)</span>
               </div>
               <div className="flex justify-between text-sm font-bold text-gray-900 pt-3 border-t border-gray-100">
                 <span>Total released</span>
-                <span>₦5,945,000</span>
+                <span>₦5,945,000 (USDC)</span>
               </div>
             </div>
 
@@ -257,6 +257,16 @@ export function ConfirmReceiptPage() {
                   'Confirm receipt'
                 )}
               </button>
+              {releaseTxHash && (
+                <a
+                  href={stellarExpertLink(releaseTxHash)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="block text-center text-xs text-blue-600 underline mt-2"
+                >
+                  View release on Stellar Expert ↗
+                </a>
+              )}
               <button
                 type="button"
                 onClick={handleReportIssue}
@@ -271,7 +281,7 @@ export function ConfirmReceiptPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs space-y-2">
             <h3 className="text-xs font-semibold text-gray-700">If something is wrong</h3>
             <p className="text-xs text-gray-500 leading-relaxed">
-              Reporting an issue moves this transaction to DISPUTED and holds the funds.
+              Reporting an issue moves this transaction to DISPUTED and holds the escrow funds on-chain.
               AgriFlow Operations reviews the evidence and records a decision.
             </p>
           </div>

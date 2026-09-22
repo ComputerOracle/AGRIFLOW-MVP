@@ -1,0 +1,178 @@
+# agriflow-api
+
+Rust backend for AgriFlow. Replaces `localStorage` as the source of truth for
+users, supply listings, demand requests, and transactions — ported 1:1 from
+the business logic in the React app's `src/services/*`, so the frontend can
+be repointed from `localStorage` to HTTP calls without behavior changes.
+
+This slice covers **auth, users, listings, demands, and the transaction state
+machine**. Escrow/payments, logistics jobs, disputes, notifications, and the
+audit log are not built yet — see "Not built yet" below.
+
+## Stack
+
+- **Axum** (web framework) + **Tokio** (async runtime)
+- **Postgres** via **sqlx** (compile-time checked queries)
+- **JWT** auth (`jsonwebtoken`) + **Argon2** password hashing
+- **rust_decimal** for money/quantity fields (no float rounding on prices)
+
+## Running it
+
+```bash
+# 1. Start Postgres
+docker-compose up -d
+
+# 2. Copy env and adjust if needed (defaults match docker-compose.yml)
+cp .env.example .env
+
+# 3. Apply migrations
+cargo run --bin migrate
+
+# 4. Run the API
+cargo run --bin agriflow-api
+# -> listening on 0.0.0.0:8080
+```
+
+Run tests (currently the transaction state machine's parity tests):
+
+```bash
+cargo test
+```
+
+## Architecture notes
+
+- `src/state_machine.rs` is a **1:1 port** of
+  `src/services/transactionStateMachine.ts` from the React app — same
+  transition table, same actor-role gating, same idempotent-reaccept special
+  case. This is now the authoritative copy; the TS file becomes display-only
+  once the frontend is repointed at this API. If the transition rules ever
+  need to change, change them here first and mirror back to the TS file
+  (or delete it once the frontend no longer needs its own copy).
+- Every DB-row struct doubles as the API response shape via `#[serde(rename_all
+  = "camelCase")]`, matching the field names already used by
+  `src/types/index.ts` in the frontend (e.g. `pricePerUnit`, not
+  `price_per_unit`) — the goal is a drop-in swap for the frontend's
+  `services/*.ts` fetch calls with no reshaping logic needed.
+- IDs are generated in the same human-readable shape the frontend/demo data
+  already uses (`USR-BUY-12345`, `TXN-AGF-87726`, ...) rather than switching
+  to UUIDs, so existing fixtures/screenshots/docs referencing these IDs stay
+  legible.
+- Auth is stateless JWT (`Authorization: Bearer <token>`), decoded per
+  request via the `AuthUser` extractor — no session table. Role checks
+  (`AuthUser::require_role`) mirror the frontend's `UserRole` gating.
+
+## API surface
+
+All routes are under `/api`.
+
+| Method | Path                          | Auth           | Notes |
+|--------|-------------------------------|----------------|-------|
+| POST   | `/auth/register`              | —              | Any role |
+| POST   | `/auth/login`                 | —              | |
+| GET    | `/auth/me`                    | any            | |
+| GET    | `/listings`                   | —              | `?commodity=&status=` (default `status=active`) |
+| GET    | `/listings/mine`               | supplier        | |
+| POST   | `/listings`                    | supplier        | |
+| GET    | `/listings/:id`                | —               | |
+| PATCH  | `/listings/:id`                 | supplier (owner) | |
+| GET    | `/demands`                       | —                | `?commodity=&status=` (default `status=open`) |
+| GET    | `/demands/mine`                  | buyer             | |
+| POST   | `/demands`                        | buyer             | |
+| GET    | `/demands/:id`                     | —                  | |
+| POST   | `/transactions`                    | buyer              | Creates from a listing; validates stock |
+| GET    | `/transactions`                     | any                 | Role-scoped: buyer/supplier see their own, admin sees all |
+| GET    | `/transactions/:id`                  | participant or admin | Includes full event history |
+| POST   | `/transactions/:id/transition`        | participant (role-gated by state machine) | `{ "to": "ACCEPTED", "note": "..." }` |
+
+## Not built yet (next slices)
+
+- **Escrow/payments** — this is the big one. Plan is an `EscrowProvider`
+  trait with a `MockEscrow` implementation first (so payment endpoints work
+  end-to-end today), swapped for a real on-chain (USDC) implementation once
+  a contract exists.
+- **Logistics jobs** — provider assignment, milestone updates, proof of
+  delivery. The state machine already supports these statuses
+  (`LOGISTICS_ASSIGNED`, `IN_TRANSIT`, etc.); only the `logistics_jobs`
+  table and endpoints are missing.
+- **Disputes, notifications, audit log** — same story: state machine and
+  data model are ready to extend, tables/endpoints aren't built.
+- **Matching engine** — the weighted scoring algorithm from
+  `matchingService.ts` hasn't been ported.
+
+## Environment variables
+
+See `.env.example`. `JWT_SECRET` must be changed before any real deployment
+— the example value is a placeholder.
+
+## Live deployment
+
+The API and its database are deployed and running on Railway — this is a
+real, hosted backend, not a local-only project:
+
+- **API**: `https://agriflow-api-production.up.railway.app` (all routes
+  under `/api`, e.g. `/api/listings` — there is no page at `/`, this is a
+  JSON API with no frontend of its own, so hitting the bare domain in a
+  browser correctly 404s)
+- **Database**: managed Postgres 18 on a persistent volume, in the same
+  Railway project as the API (`renewed-nurturing`), reached over Railway's
+  private network — not exposed publicly
+- Both services live in one Railway project with two services:
+  `agriflow-api` (this backend) and `Postgres`
+
+### How it's wired together
+
+- `agriflow-api`'s `DATABASE_URL` variable is set to
+  `${{Postgres.DATABASE_URL}}` — a live reference to the Postgres service's
+  connection string, not a copy-pasted value. If Railway ever rotates the
+  DB credentials, this updates automatically.
+- Migrations run automatically on every boot (`sqlx::migrate!` is embedded
+  into the binary at compile time — the `migrations/` directory doesn't
+  need to exist at runtime, and re-running an already-applied migration is
+  a no-op).
+- The Dockerfile builds in **sqlx offline mode**: `.sqlx/` (committed to
+  this repo) holds a snapshot of every query's expected schema, generated
+  via `cargo sqlx prepare` against a real Postgres instance. This means the
+  Docker build never needs live DB access — required, since Railway's build
+  containers can't reach the database while building. If you add or change
+  any `sqlx::query*!` macro call, you **must** re-run `cargo sqlx prepare`
+  (with a real `DATABASE_URL` in `.env` pointing at a migrated DB) and
+  commit the updated `.sqlx/` files, or the next deploy's build will fail.
+
+### Redeploying
+
+This was deployed via the Railway CLI directly from this directory, **not**
+via a GitHub-connected auto-deploy — so pushing to `main` will not trigger a
+new deployment. To ship a change:
+
+```bash
+cd backend
+railway link -p renewed-nurturing -s agriflow-api -e production   # first time only
+railway up -s agriflow-api -e production
+```
+
+(Wiring up GitHub-triggered auto-deploys instead is a reasonable follow-up —
+`railway service source connect --repo <owner>/<repo> --branch main --service agriflow-api`
+— but wasn't set up here.)
+
+## Handoff: what's next
+
+**The frontend is not connected to this backend yet.** `src/services/*.ts`
+in the React app still read/write `localStorage` exclusively — nothing in
+the UI calls this API. That wiring is intentionally left undone here; it's
+the next piece of work. Roughly, for whoever picks this up:
+
+1. Each `src/services/*.ts` file (`authService`, `supplyService`,
+   `demandService`, `transactionService`, ...) needs its `storageService`
+   calls replaced with `fetch` calls against
+   `https://agriflow-api-production.up.railway.app/api/...` (or a local
+   instance during development).
+2. The JWT returned from `/api/auth/login` / `/api/auth/register` needs
+   somewhere to live client-side (e.g. alongside `AuthSession` in
+   `AppContext`), and every subsequent request needs it attached as
+   `Authorization: Bearer <token>`.
+3. Response shapes already match `src/types/index.ts` field-for-field
+   (camelCase, same ID formats), so this should mostly be a mechanical
+   swap rather than a reshaping exercise — see "Architecture notes" above.
+4. Endpoints not yet built (payments/escrow, logistics jobs, disputes,
+   notifications, audit log, matching) will still need `localStorage` or
+   stubbing until their backend slices exist — see "Not built yet" above.

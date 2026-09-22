@@ -1,16 +1,15 @@
-/// <reference types="node" />
-
 import {
   BASE_FEE,
   Contract,
   Networks,
+  rpc,
   TransactionBuilder,
   xdr,
-  rpc,
 } from '@stellar/stellar-sdk';
+import { Buffer } from 'buffer';
 import {
+  getAddress,
   getNetworkDetails,
-  getPublicKey,
   isConnected,
   requestAccess,
   signTransaction,
@@ -31,27 +30,52 @@ export function stellarExpertLink(hash: string): string {
   return `https://stellar.expert/explorer/testnet/tx/${hash}`;
 }
 
+function assertNoFreighterError<T>(res: T, label: string): void {
+  if (
+    res &&
+    typeof res === 'object' &&
+    'error' in res &&
+    (res as { error?: unknown }).error
+  ) {
+    throw new Error(`${label}: ${String((res as { error?: unknown }).error)}`);
+  }
+}
+
+export async function isFreighterInstalled(): Promise<boolean> {
+  try {
+    const res = await isConnected();
+    if (typeof res === 'boolean') return res;
+    assertNoFreighterError(res, 'Freighter not responding');
+    return Boolean((res as { isConnected?: boolean }).isConnected);
+  } catch {
+    return false;
+  }
+}
+
 export async function connectWallet(): Promise<string> {
-  const connected = await isConnected();
-  if (!connected) {
+  if (!(await isFreighterInstalled())) {
     throw new Error('Freighter extension not detected in browser.');
   }
   try {
-    return await requestAccess();
-  } catch {
+    const res = await requestAccess();
+    assertNoFreighterError(res, 'Freighter connection request denied');
+    if (res.address) return res.address;
+    throw new Error('Unable to read public key from Freighter response.');
+  } catch (err: unknown) {
+    if (err instanceof Error) throw err;
     throw new Error('Connection request denied in Freighter. Approve the request to continue.');
   }
 }
 
 export async function getWalletKey(): Promise<string | null> {
   try {
-    if (await isConnected()) {
-      return await getPublicKey();
-    }
+    if (!(await isFreighterInstalled())) return null;
+    const res = await getAddress();
+    if (res && typeof res === 'object' && 'error' in res && res.error) return null;
+    return res.address ?? null;
   } catch {
     return null;
   }
-  return null;
 }
 
 export async function checkNetwork(): Promise<boolean> {
@@ -64,13 +88,8 @@ export async function checkNetwork(): Promise<boolean> {
 }
 
 export async function txIdToScVal(txId: string): Promise<xdr.ScVal> {
-  if (typeof crypto === 'undefined' || !crypto.subtle) {
-    throw new Error('Web Crypto API (crypto.subtle) is not available in this environment.');
-  }
-  const data = new TextEncoder().encode(txId);
-  const digest = await crypto.subtle.digest('SHA-256', data);
-  const bytes = typeof Buffer !== 'undefined' ? Buffer.from(digest) : new Uint8Array(digest);
-  return xdr.ScVal.scvBytes(bytes as Buffer);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txId));
+  return xdr.ScVal.scvBytes(Buffer.from(digest));
 }
 
 export async function invokeContract(
@@ -89,6 +108,7 @@ export async function invokeContract(
   const pollIntervalMs = options.pollIntervalMs ?? 1500;
 
   const server = new rpc.Server(RPC_URL);
+
   const account = await server.getAccount(signerPublicKey);
   const contract = new Contract(CONTRACT_ID);
 
@@ -107,18 +127,20 @@ export async function invokeContract(
 
   const prepared = rpc.assembleTransaction(tx, simulation).build();
 
-  const signed = await signTransaction(prepared.toXDR(), {
-    network: 'TESTNET',
+  const signRes = await signTransaction(prepared.toXDR(), {
     networkPassphrase: NETWORK_PASSPHRASE,
   });
+  const signedXdr =
+    signRes && typeof signRes === 'object' && 'signedTxXdr' in signRes
+      ? signRes.signedTxXdr
+      : (signRes as unknown as string);
 
-  const sendResponse = await server.sendTransaction(TransactionBuilder.fromXDR(signed, NETWORK));
+  const sendResponse = await server.sendTransaction(TransactionBuilder.fromXDR(signedXdr, NETWORK));
   if (sendResponse.status === 'ERROR') {
+    const detail = 'errorResult' in sendResponse ? String(sendResponse.errorResult) : '';
     throw new Error(
-      `Transaction submission failed. Hash: ${sendResponse.hash}. ` +
-        (sendResponse.errorResult
-          ? `Result XDR: ${sendResponse.errorResult.toString()}`
-          : 'See Freighter / Soroban RPC error logs for details.'),
+      `Transaction submission failed. Hash: ${sendResponse.hash}.` +
+        (detail ? ` Result XDR: ${detail}` : ' See Freighter / Soroban RPC error logs for details.'),
     );
   }
 

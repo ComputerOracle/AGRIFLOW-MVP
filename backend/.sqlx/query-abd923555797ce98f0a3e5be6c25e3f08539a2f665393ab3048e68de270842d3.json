@@ -1,0 +1,208 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, supplier_id, supplier_name, supplier_verified, commodity, quantity,\n               unit, quality_grade, price_per_unit, currency, location, availability_date,\n               description, status as \"status: _\", created_at, updated_at\n        FROM supply_listings\n        WHERE supplier_id = $1\n        ORDER BY created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "supplier_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "supplier_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "supplier_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "supplier_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "supplier_verified",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "supplier_verified"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "commodity",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "commodity"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "quantity",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "quantity"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "unit",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "unit"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "quality_grade",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "quality_grade"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "price_per_unit",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "price_per_unit"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "currency",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "currency"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "location",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "location"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "availability_date",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "availability_date"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "status: _",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "supply_listings",
+            "name": "updated_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "abd923555797ce98f0a3e5be6c25e3f08539a2f665393ab3048e68de270842d3"
+}

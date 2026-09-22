@@ -21,7 +21,7 @@ export function CompletePaymentPage() {
   const navigate = useNavigate();
   const { session } = useApp();
   const { toast } = useToast();
-  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card' | 'stellar'>('bank');
+  const [paymentMethod, setPaymentMethod] = useState<'bank' | 'card' | 'stellar'>('stellar');
   const [paying, setPaying] = useState(false);
   const [tx, setTx] = useState<Transaction | null>(null);
   const [walletKey, setWalletKey] = useState<string | null>(null);
@@ -88,7 +88,7 @@ export function CompletePaymentPage() {
     setErrorMessage(null);
     setIsSubmitting(true);
     try {
-      const pubKey = await connectWallet();
+      const pubKey = walletKey ?? (await connectWallet());
       setWalletKey(pubKey);
 
       const txIdVal = await txIdToScVal(txId);
@@ -100,7 +100,7 @@ export function CompletePaymentPage() {
         payerId: session?.userId ?? '',
         payerName: session?.name ?? 'Buyer',
         amount: totalDue,
-        currency: 'NGN',
+        currency: 'USDC',
       });
       await paymentService.confirm(payment.id, session?.userId ?? '', session?.name ?? '');
 
@@ -174,6 +174,55 @@ export function CompletePaymentPage() {
             </h2>
 
             <div className="space-y-3">
+              {/* USDC (Soroban Escrow) */}
+              <label
+                className={`block border rounded-lg p-4 cursor-pointer transition-all ${
+                  paymentMethod === 'stellar'
+                    ? 'border-gray-800 bg-gray-50/50 shadow-xs'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="stellar"
+                      checked={paymentMethod === 'stellar'}
+                      onChange={() => setPaymentMethod('stellar')}
+                      className="mt-0.5 accent-gray-900"
+                    />
+                    <div>
+                      <div className="text-xs font-bold text-gray-900">Pay with USDC (Soroban Escrow)</div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Escrow on Stellar Testnet · funds released on delivery confirmation
+                      </div>
+                      {walletKey ? (
+                        <div className="inline-flex items-center gap-2 mt-2 px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-800 text-xs font-medium">
+                          <span className="font-mono">{truncateKey(walletKey)}</span>
+                          <span className="inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Connected
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleConnectWallet}
+                          disabled={isSubmitting}
+                          className="mt-2 px-3 py-1.5 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                        >
+                          Connect Freighter
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs font-medium text-gray-500">
+                    {CONTRACT_ID ? 'Testnet' : 'Unconfigured'}
+                  </span>
+                </div>
+              </label>
+
               {/* Bank Transfer */}
               <label
                 className={`block border rounded-lg p-4 cursor-pointer transition-all ${
@@ -229,62 +278,13 @@ export function CompletePaymentPage() {
                   <span className="text-xs font-medium text-gray-500">1.4% fee</span>
                 </div>
               </label>
-
-              {/* USDC (Soroban Escrow) */}
-              <label
-                className={`block border rounded-lg p-4 cursor-pointer transition-all ${
-                  paymentMethod === 'stellar'
-                    ? 'border-gray-800 bg-gray-50/50 shadow-xs'
-                    : 'border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      name="paymentMethod"
-                      value="stellar"
-                      checked={paymentMethod === 'stellar'}
-                      onChange={() => setPaymentMethod('stellar')}
-                      className="mt-0.5 accent-gray-900"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-gray-900">Pay with USDC (Soroban Escrow)</div>
-                      <div className="text-xs text-gray-500 mt-0.5">
-                        Escrow on Stellar Testnet · funds released on delivery confirmation
-                      </div>
-                      {walletKey ? (
-                        <div className="inline-flex items-center gap-2 mt-2 px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-800 text-xs font-medium">
-                          <span className="font-mono">{truncateKey(walletKey)}</span>
-                          <span className="inline-flex items-center gap-1">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Connected
-                          </span>
-                        </div>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={handleConnectWallet}
-                          disabled={isSubmitting}
-                          className="mt-2 px-3 py-1.5 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-50"
-                        >
-                          Connect Freighter
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-xs font-medium text-gray-500">
-                    {CONTRACT_ID ? 'Testnet' : 'Unconfigured'}
-                  </span>
-                </div>
-              </label>
             </div>
 
             {/* Escrow Guarantee Notice */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3.5 text-xs text-gray-600 flex items-start gap-2 mt-4">
               <span className="text-gray-700">⚑</span>
               <span>
-                Funds are held by AgriFlow and released to the supplier after you confirm receipt.
+                Funds are held by Soroban smart contract escrow and released to the supplier after you confirm receipt.
                 Escrow protection is active.
               </span>
             </div>
@@ -348,9 +348,21 @@ export function CompletePaymentPage() {
                     : `Pay ₦${totalDue.toLocaleString()}`}
             </button>
 
+            {txHash && (
+              <a
+                href={stellarExpertLink(txHash)}
+                target="_blank"
+                rel="noreferrer"
+                className="block text-center text-xs text-blue-600 underline mt-2"
+              >
+                View transaction on Stellar Expert ↗
+              </a>
+            )}
+
             <p className="text-[11px] text-gray-400 text-center leading-relaxed">
-              You will be redirected to your payment provider. Do not close this window until
-              payment is confirmed.
+              {paymentMethod === 'stellar'
+                ? 'Freighter wallet will open to approve the escrow deposit.'
+                : 'You will be redirected to your payment provider. Do not close this window until payment is confirmed.'}
             </p>
           </div>
         </div>
