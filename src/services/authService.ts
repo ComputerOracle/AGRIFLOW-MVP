@@ -2,6 +2,7 @@ import type { User, AuthSession, UserRole } from '../types';
 import { storageService, STORE_KEYS } from './storageService';
 import { apiClient, setToken } from './apiClient';
 import { mapAuthResponse, mapUserPublic, type ApiAuthResponse, type ApiUserPublic } from './apiMappers';
+import { rememberUser } from './knownUsersDirectory';
 
 export const authService = {
   async register(params: {
@@ -17,6 +18,7 @@ export const authService = {
     const { session, token } = mapAuthResponse(resp);
     setToken(token);
     storageService.set(STORE_KEYS.SESSION, session);
+    rememberUser(resp.user);
     return session;
   },
 
@@ -25,6 +27,7 @@ export const authService = {
     const { session, token } = mapAuthResponse(resp);
     setToken(token);
     storageService.set(STORE_KEYS.SESSION, session);
+    rememberUser(resp.user);
     return session;
   },
 
@@ -41,6 +44,7 @@ export const authService = {
     const session = this.getSession();
     if (!session) return null;
     const raw = await apiClient.get<ApiUserPublic>('/auth/me');
+    rememberUser(raw);
     return mapUserPublic(raw);
   },
 };
