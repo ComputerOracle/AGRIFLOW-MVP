@@ -40,16 +40,10 @@ export const logisticsService = {
     all.push(job);
     storageService.set(STORE_KEYS.LOGISTICS_JOBS, all);
 
-    // Transition transaction
-    await transactionService.transition({
-      transactionId,
-      to: 'LOGISTICS_PENDING',
-      actorId: 'system',
-      actorName: 'AgriFlow System',
-      actorRole: 'system',
-      note: `Logistics job ${job.id} created.`,
-    });
-
+    // The backend transaction is already at LOGISTICS_PENDING — driven by
+    // paymentService.confirm()'s call to POST /transactions/:id/payment/confirm,
+    // which performs PAYMENT_CONFIRMED -> LOGISTICS_PENDING atomically. This
+    // is purely the local job record.
     return job;
   },
 

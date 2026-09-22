@@ -93,22 +93,23 @@ export const transactionService = {
     actorRole: UserRole | 'system';
     note?: string;
   }): Promise<Transaction> {
-    const prevRaw = await apiClient.get<ApiTransaction>(`/transactions/${params.transactionId}`);
-    const prev = mapTransaction(prevRaw);
-
+    // No pre-fetch here: GET /transactions/:id requires the caller to be
+    // the buyer, supplier or admin, but a logistics provider driving their
+    // own assigned job is none of those (the backend has no logistics-job
+    // ownership concept yet) — that GET would 403 before the real POST
+    // ever ran. `_emitSideEffects` doesn't use `_prev` anyway.
     const raw = await apiClient.post<ApiTransaction>(`/transactions/${params.transactionId}/transition`, {
       to: params.to,
       note: params.note,
     });
     const updated = mapTransaction(raw);
 
-    this._emitSideEffects(prev, updated, params.actorId, params.actorName, params.actorRole);
+    this._emitSideEffects(updated, params.actorId, params.actorName, params.actorRole);
 
     return updated;
   },
 
   _emitSideEffects(
-    _prev: Transaction,
     updated: Transaction,
     actorId: string,
     actorName: string,
