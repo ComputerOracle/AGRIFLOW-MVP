@@ -72,9 +72,6 @@ export const paymentService = {
     all.push(payment);
     storageService.set(STORE_KEYS.PAYMENTS, all);
 
-    // Link payment to transaction
-    transactionService.updateField(params.transactionId, 'paymentId', payment.id);
-
     return payment;
   },
 

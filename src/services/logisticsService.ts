@@ -14,7 +14,7 @@ export const logisticsService = {
     const existing = this.getForTransaction(transactionId);
     if (existing) return existing; // idempotent
 
-    const txn = transactionService.getById(transactionId);
+    const txn = await transactionService.getById(transactionId);
     if (!txn) throw new Error('Transaction not found.');
 
     const now = new Date().toISOString();
@@ -38,8 +38,6 @@ export const logisticsService = {
     const all = storageService.get<LogisticsJob[]>(STORE_KEYS.LOGISTICS_JOBS) ?? [];
     all.push(job);
     storageService.set(STORE_KEYS.LOGISTICS_JOBS, all);
-
-    transactionService.updateField(transactionId, 'logisticsJobId', job.id);
 
     // Transition transaction
     await transactionService.transition({
