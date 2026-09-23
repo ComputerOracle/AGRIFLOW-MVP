@@ -12,7 +12,10 @@ dist
 dist-ssr
 *.local
 .env
+.env.*
 !.env.example
+target/
+contracts/target/
 
 # Editor directories and files
 .vscode/*

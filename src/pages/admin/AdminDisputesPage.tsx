@@ -10,6 +10,8 @@ import { Textarea, Select } from '../../components/ui/Input';
 import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { formatDateTime } from '../../utils/format';
+import { invokeContract, txIdToScVal, getWalletKey } from '../../lib/stellar';
+import { FreighterBanner } from '../../components/ui/FreighterBanner';
 import type { Dispute, Transaction } from '../../types';
 
 export function AdminDisputesPage() {
@@ -44,6 +46,16 @@ export function AdminDisputesPage() {
     if (!resolving || !resolution.decision) { toast('error', 'Provide a resolution decision.'); return; }
     setLoading(true);
     try {
+      // If dispute is upheld (cancelled), refund buyer on-chain
+      if (resolution.outcome === 'cancelled') {
+        const pubKey = await getWalletKey();
+        if (!pubKey) throw new Error('Connect Freighter wallet as admin to authorize refund');
+        const txIdVal = await txIdToScVal(resolving.transactionId);
+        const hash = await invokeContract('refund', [txIdVal], pubKey);
+        toast('info', `On-chain refund submitted: ${hash.slice(0, 10)}...`);
+      }
+
+      // Always update localStorage state
       await disputeService.resolve({
         disputeId: resolving.id,
         adminId: session.userId,
@@ -68,6 +80,8 @@ export function AdminDisputesPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
+      <FreighterBanner />
+
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Disputes ({disputes.length})</h1>
 
       {sorted.length === 0 ? (
@@ -137,7 +151,7 @@ export function AdminDisputesPage() {
               onChange={(e) => setResolution((r) => ({ ...r, outcome: e.target.value as any }))}
             >
               <option value="completed">Complete Transaction (goods accepted)</option>
-              <option value="cancelled">Cancel Transaction (dispute upheld)</option>
+              <option value="cancelled">Cancel Transaction (dispute upheld — refund buyer on Stellar)</option>
             </Select>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setResolving(null)}>Cancel</Button>

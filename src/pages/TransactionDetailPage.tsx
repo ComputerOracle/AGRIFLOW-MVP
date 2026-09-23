@@ -18,6 +18,7 @@ import { Card, CardContent, CardHeader } from '../components/ui/Card';
 import { Modal } from '../components/ui/Modal';
 import { Input, Textarea } from '../components/ui/Input';
 import { formatCurrency, formatDate, formatDateTime, formatCommodity, COMMODITY_ICONS } from '../utils/format';
+import { CONTRACT_ID } from '../lib/stellar';
 import type { Transaction, Payment, LogisticsJob, AuditEvent } from '../types';
 
 export function TransactionDetailPage() {
@@ -168,6 +169,16 @@ export function TransactionDetailPage() {
           <div className="flex flex-wrap items-center gap-3 mb-1">
             <h1 className="text-xl font-bold text-gray-900 font-mono">{txn.id}</h1>
             <StatusBadge status={txn.status} />
+            {CONTRACT_ID && (
+              <a
+                href={`https://stellar.expert/explorer/testnet/contract/${CONTRACT_ID}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 underline"
+              >
+                Escrow on Stellar Expert ↗
+              </a>
+            )}
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <span className="text-2xl">{COMMODITY_ICONS[txn.commodity]}</span>
