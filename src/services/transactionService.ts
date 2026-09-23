@@ -1,15 +1,10 @@
 import type {
   Transaction, TransactionStatus, UserRole, SupplyListing, DemandRequest
 } from '../types';
-import { storageService, STORE_KEYS } from './storageService';
-import { canActorTransition } from './transactionStateMachine';
+import { apiClient } from './apiClient';
+import { mapTransaction, type ApiTransaction } from './apiMappers';
 import { auditService } from './auditService';
 import { notificationService } from './notificationService';
-
-function generateId(): string {
-  const n = String(Math.floor(Math.random() * 90000) + 10000);
-  return `TXN-AGF-${n}`;
-}
 
 export const transactionService = {
   async create(params: {
@@ -21,60 +16,69 @@ export const transactionService = {
     deliveryLocation: string;
     expectedDeliveryDate: string;
   }): Promise<Transaction> {
-    await delay(600);
-    const now = new Date().toISOString();
-    const txn: Transaction = {
-      id: generateId(),
+    const raw = await apiClient.post<ApiTransaction>('/transactions', {
       listingId: params.listing.id,
       demandId: params.demand?.id,
-      buyerId: params.buyerId,
-      buyerName: params.buyerName,
-      supplierId: params.listing.supplierId,
-      supplierName: params.listing.supplierName,
-      commodity: params.listing.commodity,
       quantity: params.quantity,
-      unit: params.listing.unit,
-      qualityGrade: params.listing.qualityGrade,
-      pricePerUnit: params.listing.pricePerUnit,
-      totalAmount: params.quantity * params.listing.pricePerUnit,
-      currency: params.listing.currency,
-      pickupLocation: params.listing.location,
       deliveryLocation: params.deliveryLocation,
       expectedDeliveryDate: params.expectedDeliveryDate,
-      status: 'PENDING',
-      history: [
-        {
-          status: 'PENDING',
-          timestamp: now,
-          actor: params.buyerName,
-          actorRole: 'buyer',
-          note: 'Transaction initiated by buyer.',
-        },
-      ],
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const all = storageService.get<Transaction[]>(STORE_KEYS.TRANSACTIONS) ?? [];
-    all.push(txn);
-    storageService.set(STORE_KEYS.TRANSACTIONS, all);
+    });
+    const txn = mapTransaction(raw);
 
     auditService.log({
       action: 'transaction_initiated',
-      actorId: params.buyerId,
-      actorName: params.buyerName,
+      actorId: txn.buyerId,
+      actorName: txn.buyerName,
       actorRole: 'buyer',
       entityId: txn.id,
       entityType: 'Transaction',
       transactionId: txn.id,
-      detail: `Transaction ${txn.id} initiated for ${params.quantity} ${params.listing.unit} of ${params.listing.commodity}. Value: ₦${txn.totalAmount.toLocaleString()}.`,
+      detail: `Transaction ${txn.id} initiated for ${txn.quantity} ${txn.unit} of ${txn.commodity}. Value: ₦${txn.totalAmount.toLocaleString()}.`,
     });
 
     notificationService.create({
-      userId: params.listing.supplierId,
+      userId: txn.supplierId,
       type: 'transaction_request',
       title: 'New Transaction Request',
-      message: `${params.buyerName} has initiated a transaction for ${params.quantity} ${params.listing.unit} of ${params.listing.commodity}. Reference: ${txn.id}`,
+      message: `${txn.buyerName} has initiated a transaction for ${txn.quantity} ${txn.unit} of ${txn.commodity}. Reference: ${txn.id}`,
+      transactionId: txn.id,
+    });
+
+    return txn;
+  },
+
+  async initiate(params: {
+    listingId: string;
+    buyerId: string;
+    buyerName: string;
+    quantity: number;
+    deliveryLocation: string;
+    expectedDeliveryDate: string;
+  }): Promise<Transaction> {
+    const raw = await apiClient.post<ApiTransaction>('/transactions', {
+      listingId: params.listingId,
+      quantity: params.quantity,
+      deliveryLocation: params.deliveryLocation,
+      expectedDeliveryDate: params.expectedDeliveryDate,
+    });
+    const txn = mapTransaction(raw);
+
+    auditService.log({
+      action: 'transaction_initiated',
+      actorId: txn.buyerId,
+      actorName: txn.buyerName,
+      actorRole: 'buyer',
+      entityId: txn.id,
+      entityType: 'Transaction',
+      transactionId: txn.id,
+      detail: `Transaction ${txn.id} initiated for ${txn.quantity} ${txn.unit} of ${txn.commodity}. Value: ₦${txn.totalAmount.toLocaleString()}.`,
+    });
+
+    notificationService.create({
+      userId: txn.supplierId,
+      type: 'transaction_request',
+      title: 'New Transaction Request',
+      message: `${txn.buyerName} has initiated a transaction for ${txn.quantity} ${txn.unit} of ${txn.commodity}. Reference: ${txn.id}`,
       transactionId: txn.id,
     });
 
@@ -89,42 +93,23 @@ export const transactionService = {
     actorRole: UserRole | 'system';
     note?: string;
   }): Promise<Transaction> {
-    await delay(400);
-    const all = storageService.get<Transaction[]>(STORE_KEYS.TRANSACTIONS) ?? [];
-    const idx = all.findIndex((t) => t.id === params.transactionId);
-    if (idx < 0) throw new Error('Transaction not found.');
-    const txn = all[idx];
+    // No pre-fetch here: GET /transactions/:id requires the caller to be
+    // the buyer, supplier or admin, but a logistics provider driving their
+    // own assigned job is none of those (the backend has no logistics-job
+    // ownership concept yet) — that GET would 403 before the real POST
+    // ever ran. `_emitSideEffects` doesn't use `_prev` anyway.
+    const raw = await apiClient.post<ApiTransaction>(`/transactions/${params.transactionId}/transition`, {
+      to: params.to,
+      note: params.note,
+    });
+    const updated = mapTransaction(raw);
 
-    const { allowed, reason } = canActorTransition(txn.status, params.to, params.actorRole);
-    if (!allowed) throw new Error(reason ?? 'Transition not allowed.');
-
-    const now = new Date().toISOString();
-    const updated: Transaction = {
-      ...txn,
-      status: params.to,
-      updatedAt: now,
-      history: [
-        ...txn.history,
-        {
-          status: params.to,
-          timestamp: now,
-          actor: params.actorName,
-          actorRole: params.actorRole,
-          note: params.note,
-        },
-      ],
-    };
-
-    all[idx] = updated;
-    storageService.set(STORE_KEYS.TRANSACTIONS, all);
-
-    this._emitSideEffects(txn, updated, params.actorId, params.actorName, params.actorRole);
+    this._emitSideEffects(updated, params.actorId, params.actorName, params.actorRole);
 
     return updated;
   },
 
   _emitSideEffects(
-    _prev: Transaction,
     updated: Transaction,
     actorId: string,
     actorName: string,
@@ -204,7 +189,6 @@ export const transactionService = {
     const auditParams = auditActions[status];
     if (auditParams) auditService.log(auditParams);
 
-    // Notifications
     switch (status) {
       case 'ACCEPTED':
         notificationService.create({
@@ -229,15 +213,6 @@ export const transactionService = {
           message: `Payment for transaction ${id} has been confirmed. A logistics job has been created.`,
           transactionId: id,
         });
-        notificationService.create({
-          userId: 'USR-ADM-001', type: 'logistics_assigned',
-          title: 'New Logistics Job Pending',
-          message: `Transaction ${id} requires a logistics provider assignment.`,
-          transactionId: id,
-        });
-        break;
-      case 'LOGISTICS_ASSIGNED':
-        // Notify the provider (we need to look up the job)
         break;
       case 'DELIVERED':
         notificationService.create({
@@ -266,57 +241,31 @@ export const transactionService = {
     }
   },
 
-  getAll(): Transaction[] {
-    return storageService.get<Transaction[]>(STORE_KEYS.TRANSACTIONS) ?? [];
+  async getAll(): Promise<Transaction[]> {
+    const raw = await apiClient.get<ApiTransaction[]>('/transactions');
+    return raw.map(mapTransaction);
   },
 
-  getById(id: string): Transaction | null {
-    return this.getAll().find((t) => t.id === id) ?? null;
-  },
-
-  getForBuyer(buyerId: string): Transaction[] {
-    return this.getAll().filter((t) => t.buyerId === buyerId);
-  },
-
-  getByBuyer(buyerId: string): Transaction[] {
-    return this.getForBuyer(buyerId);
-  },
-
-  async initiate(params: {
-    listingId: string;
-    buyerId: string;
-    buyerName: string;
-    quantity: number;
-    deliveryLocation: string;
-    expectedDeliveryDate: string;
-  }): Promise<Transaction> {
-    const listing = storageService.get<SupplyListing[]>(STORE_KEYS.LISTINGS)?.find((l) => l.id === params.listingId);
-    if (!listing) throw new Error('Listing not found');
-    return this.create({
-      listing,
-      buyerId: params.buyerId,
-      buyerName: params.buyerName,
-      quantity: params.quantity,
-      deliveryLocation: params.deliveryLocation,
-      expectedDeliveryDate: params.expectedDeliveryDate,
-    });
-  },
-
-  getForSupplier(supplierId: string): Transaction[] {
-    return this.getAll().filter((t) => t.supplierId === supplierId);
-  },
-
-  updateField<K extends keyof Transaction>(id: string, key: K, value: Transaction[K]): void {
-    const all = storageService.get<Transaction[]>(STORE_KEYS.TRANSACTIONS) ?? [];
-    const idx = all.findIndex((t) => t.id === id);
-    if (idx >= 0) {
-      (all[idx] as any)[key] = value;
-      all[idx].updatedAt = new Date().toISOString();
-      storageService.set(STORE_KEYS.TRANSACTIONS, all);
+  async getById(id: string): Promise<Transaction | null> {
+    try {
+      const raw = await apiClient.get<ApiTransaction>(`/transactions/${id}`);
+      return mapTransaction(raw);
+    } catch {
+      return null;
     }
   },
-};
 
-function delay(ms: number) {
-  return new Promise((r) => setTimeout(r, ms));
-}
+  // Role-scoping (buyer/supplier/admin) is done server-side based on the JWT —
+  // these are thin aliases over the same role-scoped endpoint.
+  async getForBuyer(): Promise<Transaction[]> {
+    return this.getAll();
+  },
+
+  async getByBuyer(): Promise<Transaction[]> {
+    return this.getAll();
+  },
+
+  async getForSupplier(): Promise<Transaction[]> {
+    return this.getAll();
+  },
+};

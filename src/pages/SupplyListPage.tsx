@@ -1,20 +1,33 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Calendar } from 'lucide-react';
 import { supplyService } from '../services/supplyService';
 import { Card } from '../components/ui/Card';
 import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { EmptyState } from '../components/ui/EmptyState';
+import { useToast } from '../components/ui/Toast';
 import { formatCurrency, formatDate, formatCommodity, COMMODITY_ICONS } from '../utils/format';
-import type { CommodityType } from '../types';
+import type { CommodityType, SupplyListing } from '../types';
 
 export function SupplyListPage() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [search, setSearch] = useState('');
   const [filterCommodity, setFilterCommodity] = useState('');
   const [filterVerified, setFilterVerified] = useState('');
+  const [all, setAll] = useState<SupplyListing[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const all = supplyService.getActive();
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    supplyService.getActive()
+      .then((listings) => { if (!cancelled) setAll(listings); })
+      .catch((e: unknown) => { if (!cancelled) toast('error', e instanceof Error ? e.message : 'Failed to load listings.'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [toast]);
+
   const filtered = all.filter((l) => {
     const q = search.toLowerCase();
     const matchSearch = !q || l.commodity.includes(q) || l.supplierName.toLowerCase().includes(q) || l.location.toLowerCase().includes(q);
@@ -70,7 +83,9 @@ export function SupplyListPage() {
 
       <div className="text-xs text-gray-500 mb-4">{filtered.length} listing{filtered.length !== 1 ? 's' : ''} found</div>
 
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Loading listings...</div>
+      ) : filtered.length === 0 ? (
         <EmptyState title="No supply listings found" description="Try adjusting your filters or check back later." />
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

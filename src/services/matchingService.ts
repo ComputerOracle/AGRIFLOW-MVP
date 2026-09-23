@@ -82,7 +82,7 @@ function computeMatch(demand: DemandRequest, listing: SupplyListing): Match | nu
 export const matchingService = {
   async findMatchesForDemand(demand: DemandRequest): Promise<Match[]> {
     await delay(800);
-    const activeListings = supplyService.getActive();
+    const activeListings = await supplyService.getActive();
     const matches: Match[] = [];
     for (const listing of activeListings) {
       if (listing.supplierId === demand.buyerId) continue; // can't buy from yourself

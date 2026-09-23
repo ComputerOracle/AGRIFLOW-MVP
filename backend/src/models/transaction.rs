@@ -64,3 +64,8 @@ pub struct TransitionRequest {
     pub to: String,
     pub note: Option<String>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct MockPaymentFailRequest {
+    pub reason: Option<String>,
+}

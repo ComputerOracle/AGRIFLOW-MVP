@@ -44,8 +44,6 @@ export const disputeService = {
       note: `Dispute raised: ${params.reason}`,
     });
 
-    transactionService.updateField(params.transactionId, 'disputeId', dispute.id);
-
     auditService.log({
       action: 'dispute_raised',
       actorId: params.raisedById,

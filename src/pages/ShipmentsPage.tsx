@@ -1,29 +1,58 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Truck, MapPin } from 'lucide-react';
 import { logisticsService } from '../services/logisticsService';
 import { transactionService } from '../services/transactionService';
 import { useApp } from '../context/AppContext';
+import { useToast } from '../components/ui/Toast';
 import { EmptyState } from '../components/ui/EmptyState';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { formatDate, formatCommodity } from '../utils/format';
+import type { LogisticsJob, Transaction } from '../types';
 
 export function ShipmentsPage() {
   const { session } = useApp();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  if (!session) return null;
+  const [jobs, setJobs] = useState<LogisticsJob[]>([]);
+  const [txnsById, setTxnsById] = useState<Record<string, Transaction>>({});
+  const [loading, setLoading] = useState(true);
 
-  let jobs = [];
-  if (session.role === 'logistics') {
-    jobs = logisticsService.getForProvider(session.userId);
-  } else {
-    // Buyer or supplier — get jobs for their transactions
-    const txns = session.role === 'buyer'
-      ? transactionService.getForBuyer(session.userId)
-      : transactionService.getForSupplier(session.userId);
-    jobs = txns
-      .map((t) => logisticsService.getForTransaction(t.id))
-      .filter(Boolean) as ReturnType<typeof logisticsService.getForProvider>;
-  }
+  useEffect(() => {
+    if (!session) return;
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      try {
+        let loadedJobs: LogisticsJob[];
+        if (session.role === 'logistics') {
+          loadedJobs = logisticsService.getForProvider(session.userId);
+        } else {
+          const txns = await transactionService.getAll();
+          loadedJobs = txns
+            .map((t) => logisticsService.getForTransaction(t.id))
+            .filter((j): j is LogisticsJob => j !== null);
+        }
+        if (cancelled) return;
+        setJobs(loadedJobs);
+
+        const txnEntries = await Promise.all(
+          loadedJobs.map(async (j) => [j.transactionId, await transactionService.getById(j.transactionId)] as const)
+        );
+        if (cancelled) return;
+        const map: Record<string, Transaction> = {};
+        for (const [txnId, t] of txnEntries) if (t) map[txnId] = t;
+        setTxnsById(map);
+      } catch (e: unknown) {
+        if (!cancelled) toast('error', e instanceof Error ? e.message : 'Failed to load shipments.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [session, toast]);
+
+  if (!session) return null;
 
   const sorted = [...jobs].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
@@ -33,12 +62,14 @@ export function ShipmentsPage() {
         {session.role === 'logistics' ? 'Active Shipments' : 'Shipment Tracking'}
       </h1>
 
-      {sorted.length === 0 ? (
+      {loading ? (
+        <div className="text-sm text-gray-500 py-12 text-center">Loading shipments...</div>
+      ) : sorted.length === 0 ? (
         <EmptyState icon={<Truck className="w-7 h-7" />} title="No shipments" description="Shipments will appear here once a transaction moves to logistics." />
       ) : (
         <div className="space-y-3">
           {sorted.map((j) => {
-            const txn = transactionService.getById(j.transactionId);
+            const txn = txnsById[j.transactionId];
             return (
               <div
                 key={j.id}

@@ -23,6 +23,8 @@ pub fn build(state: AppState) -> Router {
         .route("/transactions", get(transactions::list_mine).post(transactions::create))
         .route("/transactions/{id}", get(transactions::get_one))
         .route("/transactions/{id}/transition", post(transactions::transition))
+        .route("/transactions/{id}/payment/confirm", post(transactions::mock_confirm_payment))
+        .route("/transactions/{id}/payment/fail", post(transactions::mock_fail_payment))
         .with_state(state);
 
     Router::new()

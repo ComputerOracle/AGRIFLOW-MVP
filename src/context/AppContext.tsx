@@ -2,8 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import type { AuthSession, Notification, UserRole } from '../types';
 import { authService } from '../services/authService';
 import { notificationService } from '../services/notificationService';
-import { storageService, STORE_KEYS } from '../services/storageService';
-import { seedInitialData } from '../services/seedService';
+import { clearBackendOwnedLocalData } from '../services/seedService';
 
 interface RegisterParams {
   name: string;
@@ -32,10 +31,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [session, setSessionState] = useState<AuthSession | null>(() => authService.getSession());
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // Seed on first load
+  // Users, listings, demands and transactions now live on the backend —
+  // clear any stale copies left over from the old localStorage-only build.
   useEffect(() => {
-    const seeded = storageService.get<boolean>(STORE_KEYS.SEEDED);
-    if (!seeded) seedInitialData();
+    clearBackendOwnedLocalData();
   }, []);
 
   const refreshNotifications = useCallback(() => {

@@ -12,10 +12,13 @@ export function BuyerDashboard() {
 
   useEffect(() => {
     if (!session) return;
-    const txs = transactionService.getByBuyer(session.userId);
-    const dms = demandService.getByBuyer(session.userId);
-    setTransactions(txs);
-    setDemands(dms);
+    let cancelled = false;
+    Promise.all([transactionService.getByBuyer(), demandService.getByBuyer()]).then(([txs, dms]) => {
+      if (cancelled) return;
+      setTransactions(txs);
+      setDemands(dms);
+    });
+    return () => { cancelled = true; };
   }, [session]);
 
   const openDemandsCount = demands.filter((d) => d.status === 'open' || d.status === 'matched').length;

@@ -32,26 +32,31 @@ export function SupplyDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    const l = supplyService.getById(id);
-    setListing(l);
-    if (l && session) {
-      // Pre-fill from user demand if available
-      if (session.role === 'buyer') {
-        const demands = demandService.getForBuyer(session.userId).filter((d) => d.commodity === l.commodity);
+    let cancelled = false;
+    (async () => {
+      const l = await supplyService.getById(id);
+      if (cancelled) return;
+      setListing(l);
+      if (l && session?.role === 'buyer') {
+        const allDemands = await demandService.getForBuyer();
+        if (cancelled) return;
+        const demands = allDemands.filter((d) => d.commodity === l.commodity);
         setMyDemands(demands);
         if (demands.length > 0) {
           const d = demands[0];
           setTxnForm({ quantity: String(d.quantity), deliveryLocation: d.destinationLocation, expectedDeliveryDate: d.requiredByDate.slice(0, 10) });
         }
       }
-    }
+    })();
+    return () => { cancelled = true; };
   }, [id, session]);
 
   const findMatches = async () => {
     if (!listing || !session) return;
     setFinding(true);
     try {
-      const demands = demandService.getForBuyer(session.userId).filter((d) => d.commodity === listing.commodity);
+      const allDemands = await demandService.getForBuyer();
+      const demands = allDemands.filter((d) => d.commodity === listing.commodity);
       if (demands.length === 0) {
         toast('info', 'Create a demand request first to see compatibility matches.');
         navigate('/app/demands/new');

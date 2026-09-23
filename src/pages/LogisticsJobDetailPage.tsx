@@ -43,11 +43,11 @@ export function LogisticsJobDetailPage() {
   const [showPodModal, setShowPodModal] = useState(false);
   const [pod, setPod] = useState({ recipientName: '', deliveryNote: '' });
 
-  const refresh = () => {
+  const refresh = async () => {
     if (!id) return;
     const j = logisticsService.getById(id);
     setJob(j);
-    if (j) setTxn(transactionService.getById(j.transactionId));
+    if (j) setTxn(await transactionService.getById(j.transactionId));
   };
 
   useEffect(() => { refresh(); }, [id]);
@@ -66,7 +66,7 @@ export function LogisticsJobDetailPage() {
       });
       toast('success', `Status updated to ${to.replace(/_/g, ' ')}.`);
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
   };
@@ -91,7 +91,7 @@ export function LogisticsJobDetailPage() {
       toast('success', 'Shipment marked as delivered. Proof of delivery recorded.');
       setShowPodModal(false);
       refreshNotifications();
-      refresh();
+      await refresh();
     } catch (e: any) { toast('error', e.message); }
     finally { setLoading(false); }
   };

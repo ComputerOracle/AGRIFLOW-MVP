@@ -14,18 +14,27 @@ export function SupplierRequestPage() {
   const { toast } = useToast();
   const [acting, setActing] = useState(false);
   const [txn, setTxn] = useState<Transaction | null>(null);
+  const [listing, setListing] = useState<import('../types').SupplyListing | null>(null);
 
   useEffect(() => {
     if (!session) return;
-    const allSupplierTxns = transactionService.getForSupplier(session.userId);
-    let current: Transaction | null = null;
-    if (id) {
-      current = transactionService.getById(id);
-    } else {
-      // Find first pending or first transaction
-      current = allSupplierTxns.find((t) => t.status === 'PENDING' || t.status === 'PENDING_SUPPLIER_ACCEPTANCE') || allSupplierTxns[0] || null;
-    }
-    setTxn(current);
+    let cancelled = false;
+    (async () => {
+      let current: Transaction | null = null;
+      if (id) {
+        current = await transactionService.getById(id);
+      } else {
+        const allSupplierTxns = await transactionService.getForSupplier();
+        current = allSupplierTxns.find((t) => t.status === 'PENDING' || t.status === 'PENDING_SUPPLIER_ACCEPTANCE') || allSupplierTxns[0] || null;
+      }
+      if (cancelled) return;
+      setTxn(current);
+      if (current?.listingId) {
+        const l = await supplyService.getById(current.listingId);
+        if (!cancelled) setListing(l);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [id, session]);
 
   const handleAccept = async () => {
@@ -76,7 +85,6 @@ export function SupplierRequestPage() {
     }
   };
 
-  const listing = txn?.listingId ? supplyService.getById(txn.listingId) : null;
   const isPending = txn?.status === 'PENDING' || txn?.status === 'PENDING_SUPPLIER_ACCEPTANCE';
   const totalAmount = txn ? txn.totalAmount : 5760000;
   const quantity = txn ? txn.quantity : 12;

@@ -135,15 +135,23 @@ vercel --prod
 
 ## 💻 Local Development Setup
 
+The frontend talks to the Rust backend in `/backend` (see `backend/README.md`)
+for auth, listings, demands and transactions — payments, logistics,
+disputes, notifications and the audit log still run on localStorage
+until those backend slices exist.
+
 ```bash
 # Clone repository
 git clone https://github.com/your-username/agriflow.git
-
-# Navigate into project directory
 cd agriflow
 
-# Install dependencies
+# Install frontend dependencies
 npm install
+
+# Point the frontend at an API (defaults to http://localhost:8080/api)
+cp .env.example .env
+# — or edit .env to VITE_API_URL=https://agriflow-api-production.up.railway.app/api
+# to use the live Railway deployment instead of running the backend locally.
 
 # Start Vite development server
 npm run dev
@@ -154,6 +162,24 @@ npm run build
 # Preview production build locally
 npm run preview
 ```
+
+To run the backend locally instead of pointing at Railway, see
+`backend/README.md` (`docker-compose up -d`, `cargo run --bin migrate`,
+`cargo run --bin agriflow-api`).
+
+### Seeding demo data
+
+The demo accounts below and a couple of sample listings/demands aren't
+seeded automatically anymore (they used to live in localStorage; now
+they're real backend accounts). Create them with:
+
+```bash
+node scripts/seed-backend.mjs                                             # local backend
+API_URL=https://agriflow-api-production.up.railway.app/api node scripts/seed-backend.mjs  # Railway
+```
+
+It's idempotent — re-running it logs into existing accounts instead of
+failing.
 
 ---
 

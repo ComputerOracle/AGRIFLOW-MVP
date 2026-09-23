@@ -3,6 +3,7 @@ import { storageService, STORE_KEYS } from './storageService';
 import { transactionService } from './transactionService';
 import { auditService } from './auditService';
 import { logisticsService } from './logisticsService';
+import { apiClient } from './apiClient';
 
 function generateId(transactionId: string): string {
   const n = transactionId.split('-').pop() ?? String(Date.now()).slice(-5);
@@ -72,9 +73,6 @@ export const paymentService = {
     all.push(payment);
     storageService.set(STORE_KEYS.PAYMENTS, all);
 
-    // Link payment to transaction
-    transactionService.updateField(params.transactionId, 'paymentId', payment.id);
-
     return payment;
   },
 
@@ -89,6 +87,13 @@ export const paymentService = {
     // Idempotency: already confirmed
     if (payment.status === 'CONFIRMED') return payment;
 
+    // PAYMENT_CONFIRMED and the follow-on LOGISTICS_PENDING transition are
+    // both gated to a system actor, which no real JWT role can present (see
+    // backend/src/routes/transactions.rs' mock_confirm_payment doc comment)
+    // — this dedicated endpoint is the one legitimate way to settle the
+    // mock escrow, scoped to exactly the buyer on this transaction.
+    await apiClient.post(`/transactions/${payment.transactionId}/payment/confirm`);
+
     const now = new Date().toISOString();
     const updated: Payment = {
       ...payment,
@@ -100,17 +105,8 @@ export const paymentService = {
     all[idx] = updated;
     storageService.set(STORE_KEYS.PAYMENTS, all);
 
-    // Transition transaction to PAYMENT_CONFIRMED
-    await transactionService.transition({
-      transactionId: payment.transactionId,
-      to: 'PAYMENT_CONFIRMED',
-      actorId: 'system',
-      actorName: 'AgriFlow System',
-      actorRole: 'system',
-      note: `Payment confirmed. Provider ref: ${updated.providerReference}`,
-    });
-
-    // Auto-create logistics job — idempotent
+    // Auto-create the (local-only) logistics job — idempotent. The backend
+    // transaction is already at LOGISTICS_PENDING as of the call above.
     await logisticsService.createJobForTransaction(payment.transactionId);
 
     return updated;
@@ -122,19 +118,13 @@ export const paymentService = {
     const idx = all.findIndex((p) => p.id === paymentId);
     if (idx < 0) throw new Error('Payment not found.');
     const payment = all[idx];
+
+    await apiClient.post(`/transactions/${payment.transactionId}/payment/fail`, { reason });
+
     const now = new Date().toISOString();
     const updated: Payment = { ...payment, status: 'FAILED', failureReason: reason, updatedAt: now };
     all[idx] = updated;
     storageService.set(STORE_KEYS.PAYMENTS, all);
-
-    await transactionService.transition({
-      transactionId: payment.transactionId,
-      to: 'PAYMENT_FAILED',
-      actorId: 'system',
-      actorName: 'AgriFlow System',
-      actorRole: 'system',
-      note: `Payment failed: ${reason}`,
-    });
 
     return updated;
   },

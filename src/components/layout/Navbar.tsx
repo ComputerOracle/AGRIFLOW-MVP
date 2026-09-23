@@ -19,7 +19,6 @@ function getNavItems(role: UserRole): NavItem[] {
       return [
         { labelKey: 'nav.dashboard', path: '/app/dashboard' },
         { labelKey: 'nav.demands', path: '/app/demands' },
-        { labelKey: 'nav.matches', path: '/app/matches' },
         { labelKey: 'nav.transactions', path: '/app/transactions' },
         { labelKey: 'nav.deliveries', path: '/app/deliveries' },
       ];

@@ -1,6 +1,7 @@
-import { storageService, STORE_KEYS } from '../../services/storageService';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { VerifiedBadge } from '../../components/ui/VerifiedBadge';
 import { formatDateTime } from '../../utils/format';
+import { Users } from 'lucide-react';
 import type { User } from '../../types';
 
 const ROLE_COLORS: Record<string, string> = {
@@ -11,8 +12,24 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export function AdminUsersPage() {
-  const users = storageService.get<User[]>(STORE_KEYS.USERS) ?? [];
+  // The backend has no endpoint to list users yet (only auth/register,
+  // auth/login, auth/me — see backend/README.md "Not built yet"), so this
+  // page has nothing to show until one is added.
+  const users: User[] = [];
   const sorted = [...users].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  if (sorted.length === 0) {
+    return (
+      <div className="p-6 max-w-5xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Users</h1>
+        <EmptyState
+          icon={<Users className="w-7 h-7" />}
+          title="User directory not available"
+          description="The backend doesn't expose a list-users endpoint yet — only registration, login and the current user's own profile. This page will populate once that endpoint exists."
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

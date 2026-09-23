@@ -9,8 +9,8 @@ use crate::error::{AppError, AppResult};
 use crate::ids;
 use crate::models::listing::SupplyListing;
 use crate::models::transaction::{
-    CreateTransactionRequest, Transaction, TransactionEvent, TransactionWithHistory,
-    TransitionRequest,
+    CreateTransactionRequest, MockPaymentFailRequest, Transaction, TransactionEvent,
+    TransactionWithHistory, TransitionRequest,
 };
 use crate::models::user::UserRole;
 use crate::state::AppState;
@@ -290,4 +290,156 @@ pub async fn transition(
         transaction: updated,
         history,
     }))
+}
+
+fn assert_is_buyer_on_txn(auth: &AuthUser, txn: &Transaction) -> AppResult<()> {
+    if auth.role != UserRole::Buyer || auth.user_id != txn.buyer_id {
+        return Err(AppError::Forbidden(
+            "Only the buyer on this transaction can settle its payment.".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Applies one system-actor transition inside an already-open db transaction,
+/// checking it against the state machine the same way the generic
+/// `transition` handler does, and records the event. Used by the mock
+/// payment endpoints below, which are the only place a request is allowed
+/// to act as `Actor::System` — see their doc comments for why.
+async fn apply_system_transition(
+    db_tx: &mut sqlx::PgConnection,
+    id: &str,
+    to: TransactionStatus,
+    note: &str,
+) -> AppResult<Transaction> {
+    let current = sqlx::query_as!(
+        Transaction,
+        r#"SELECT id, listing_id, demand_id, buyer_id, buyer_name, supplier_id, supplier_name,
+                  commodity, quantity, unit, quality_grade, price_per_unit, total_amount, currency,
+                  pickup_location, delivery_location, expected_delivery_date, status, payment_id,
+                  logistics_job_id, dispute_id, created_at, updated_at
+           FROM transactions WHERE id = $1 FOR UPDATE"#,
+        id,
+    )
+    .fetch_one(&mut *db_tx)
+    .await?;
+
+    let from = TransactionStatus::from_str(&current.status)
+        .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
+    let check = can_actor_transition(from, to, Actor::System);
+    if !check.allowed {
+        return Err(AppError::Conflict(
+            check.reason.unwrap_or_else(|| "Transition not permitted.".into()),
+        ));
+    }
+
+    let updated = sqlx::query_as!(
+        Transaction,
+        r#"
+        UPDATE transactions SET status = $2, updated_at = now() WHERE id = $1
+        RETURNING id, listing_id, demand_id, buyer_id, buyer_name, supplier_id, supplier_name,
+                  commodity, quantity, unit, quality_grade, price_per_unit, total_amount, currency,
+                  pickup_location, delivery_location, expected_delivery_date, status, payment_id,
+                  logistics_job_id, dispute_id, created_at, updated_at
+        "#,
+        id,
+        to.as_str(),
+    )
+    .fetch_one(&mut *db_tx)
+    .await?;
+
+    sqlx::query!(
+        r#"INSERT INTO transaction_events (transaction_id, status, actor, actor_role, note)
+           VALUES ($1, $2, 'AgriFlow System', 'system', $3)"#,
+        id,
+        to.as_str(),
+        note,
+    )
+    .execute(&mut *db_tx)
+    .await?;
+
+    Ok(updated)
+}
+
+async fn history_for(state: &AppState, id: &str) -> AppResult<Vec<TransactionEvent>> {
+    Ok(sqlx::query_as!(
+        TransactionEvent,
+        r#"SELECT id, transaction_id, status, actor, actor_role, note, created_at
+           FROM transaction_events WHERE transaction_id = $1 ORDER BY created_at ASC"#,
+        id,
+    )
+    .fetch_all(&state.db)
+    .await?)
+}
+
+/// Settles the mock escrow payment for a transaction the buyer initiated,
+/// then immediately queues it for logistics.
+///
+/// There is no real payment provider integrated yet (see backend/README.md
+/// "Not built yet" — escrow/payments is the next slice) and no service/
+/// webhook credential mechanism exists either, so the state machine's
+/// `PAYMENT_CONFIRMED`/`LOGISTICS_PENDING` transitions — which require
+/// `Actor::System` — could not be reached by any real caller: JWT roles map
+/// only to Buyer/Supplier/Logistics/Admin, never System. This endpoint is
+/// the one legitimate place that gap is bridged: it's gated to exactly the
+/// buyer who owns the transaction, only from `PAYMENT_PENDING`, and it
+/// performs the *same* system-actor transitions a real payment webhook
+/// would trigger once one exists — it does not loosen the state machine's
+/// actor table itself, and POST /transactions/:id/transition still rejects
+/// these on any role, System included, since nothing can present System's
+/// credentials there.
+pub async fn mock_confirm_payment(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Json<TransactionWithHistory>> {
+    let txn = load_transaction(&state, &id).await?;
+    assert_is_buyer_on_txn(&auth, &txn)?;
+
+    let mut db_tx = state.db.begin().await?;
+    apply_system_transition(
+        &mut db_tx,
+        &id,
+        TransactionStatus::PaymentConfirmed,
+        "Payment confirmed (mock escrow).",
+    )
+    .await?;
+    let transaction = apply_system_transition(
+        &mut db_tx,
+        &id,
+        TransactionStatus::LogisticsPending,
+        "Logistics job queued.",
+    )
+    .await?;
+    db_tx.commit().await?;
+
+    let history = history_for(&state, &id).await?;
+    Ok(Json(TransactionWithHistory { transaction, history }))
+}
+
+/// Marks the mock escrow payment as failed. See `mock_confirm_payment` for
+/// why this needs to exist as its own endpoint rather than going through
+/// the generic transition route.
+pub async fn mock_fail_payment(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<MockPaymentFailRequest>,
+) -> AppResult<Json<TransactionWithHistory>> {
+    let txn = load_transaction(&state, &id).await?;
+    assert_is_buyer_on_txn(&auth, &txn)?;
+
+    let reason = body.reason.unwrap_or_else(|| "Payment failed.".to_string());
+    let mut db_tx = state.db.begin().await?;
+    let transaction = apply_system_transition(
+        &mut db_tx,
+        &id,
+        TransactionStatus::PaymentFailed,
+        &format!("Payment failed: {reason}"),
+    )
+    .await?;
+    db_tx.commit().await?;
+
+    let history = history_for(&state, &id).await?;
+    Ok(Json(TransactionWithHistory { transaction, history }))
 }

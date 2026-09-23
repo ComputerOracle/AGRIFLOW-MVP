@@ -104,7 +104,7 @@ export function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setCredentials('supplier@adeyemiproduce.com')}
+                onClick={() => setCredentials('supplier@adeyemi.com')}
                 className="p-2 border border-gray-200 hover:border-gray-300 rounded-md text-left transition-colors hover:bg-gray-50"
               >
                 <div className="font-medium text-gray-900">Supplier</div>
@@ -120,7 +120,7 @@ export function LoginPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setCredentials('admin@agriflow.trade')}
+                onClick={() => setCredentials('admin@agriflow.ng')}
                 className="p-2 border border-gray-200 hover:border-gray-300 rounded-md text-left transition-colors hover:bg-gray-50"
               >
                 <div className="font-medium text-gray-900">Operations</div>

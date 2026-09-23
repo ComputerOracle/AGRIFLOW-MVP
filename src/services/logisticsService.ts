@@ -2,6 +2,7 @@ import type { LogisticsJob, LogisticsStatus, ProofOfDelivery, User } from '../ty
 import { storageService, STORE_KEYS } from './storageService';
 import { transactionService } from './transactionService';
 import { notificationService } from './notificationService';
+import { getKnownUsersByRole } from './knownUsersDirectory';
 
 function generateId(): string {
   const n = String(Math.floor(Math.random() * 90000) + 10000);
@@ -14,7 +15,7 @@ export const logisticsService = {
     const existing = this.getForTransaction(transactionId);
     if (existing) return existing; // idempotent
 
-    const txn = transactionService.getById(transactionId);
+    const txn = await transactionService.getById(transactionId);
     if (!txn) throw new Error('Transaction not found.');
 
     const now = new Date().toISOString();
@@ -39,18 +40,10 @@ export const logisticsService = {
     all.push(job);
     storageService.set(STORE_KEYS.LOGISTICS_JOBS, all);
 
-    transactionService.updateField(transactionId, 'logisticsJobId', job.id);
-
-    // Transition transaction
-    await transactionService.transition({
-      transactionId,
-      to: 'LOGISTICS_PENDING',
-      actorId: 'system',
-      actorName: 'AgriFlow System',
-      actorRole: 'system',
-      note: `Logistics job ${job.id} created.`,
-    });
-
+    // The backend transaction is already at LOGISTICS_PENDING — driven by
+    // paymentService.confirm()'s call to POST /transactions/:id/payment/confirm,
+    // which performs PAYMENT_CONFIRMED -> LOGISTICS_PENDING atomically. This
+    // is purely the local job record.
     return job;
   },
 
@@ -168,9 +161,11 @@ export const logisticsService = {
     return this.getAll().filter((j) => j.status === 'PENDING');
   },
 
-  getProviders(): User[] {
-    const users = storageService.get<User[]>(STORE_KEYS.USERS) ?? [];
-    return users.filter((u) => u.role === 'logistics');
+  // See knownUsersDirectory.ts — this is only every logistics-role user
+  // who has registered/logged in on this browser, not a full directory
+  // (the backend has no GET /users endpoint yet).
+  getProviders(): Omit<User, 'passwordHash'>[] {
+    return getKnownUsersByRole('logistics');
   },
 };
 
