@@ -28,7 +28,10 @@ cp .env.example .env
 # 3. Apply migrations
 cargo run --bin migrate
 
-# 4. Run the API
+# 4. (optional) Seed the default admin account -- needs ADMIN_SEED_PASSWORD set
+cargo run --bin seed_admin
+
+# 5. Run the API
 cargo run --bin agriflow-api
 # -> listening on 0.0.0.0:8080
 ```
@@ -69,7 +72,10 @@ All routes are under `/api`.
 |--------|-------------------------------|----------------|-------|
 | POST   | `/auth/register`              | —              | buyer / supplier / logistics; `admin` needs the `X-Admin-Registration-Key` header. Sends a welcome email |
 | POST   | `/auth/login`                 | —              | |
+| POST   | `/auth/admin/login`           | —              | Same as `/auth/login`, but rejects non-admin credentials with the same generic error as a wrong password |
 | GET    | `/auth/me`                    | any            | |
+| GET    | `/admin/users`                | admin          | `?role=&search=&page=&limit=` (page default 1, limit default 20, max 100). Returns `{ users, total, page, limit }`. `search` matches name/email/organization (case-insensitive substring) |
+| PATCH  | `/admin/users/:id/verify`     | admin          | `{ "verified": true \| false }` -- can un-verify, not just verify |
 | GET    | `/listings`                   | any            | `?commodity=&status=` (default `status=active`) |
 | GET    | `/listings/mine`               | supplier        | |
 | POST   | `/listings`                    | supplier        | |
@@ -95,7 +101,12 @@ All routes are under `/api`.
   (`LOGISTICS_ASSIGNED`, `IN_TRANSIT`, etc.); only the `logistics_jobs`
   table and endpoints are missing.
 - **Disputes, notifications, audit log** — same story: state machine and
-  data model are ready to extend, tables/endpoints aren't built.
+  data model are ready to extend, tables/endpoints aren't built. The
+  `GET /admin/disputes`, `POST /admin/disputes/:id/resolve`, and
+  `GET /admin/audit` endpoints from issue #33 aren't implemented for this
+  reason -- there's no `disputes`/`audit_logs` table to back them yet, and
+  the `require_role(Admin)` pattern `admin::list_users`/`verify_user` use
+  is ready to reuse once those tables exist.
 - **Matching engine** — the weighted scoring algorithm from
   `matchingService.ts` hasn't been ported.
 
@@ -111,6 +122,7 @@ See `.env.example`. `JWT_SECRET` must be changed before any real deployment
 | `JWT_EXPIRY_HOURS` | no (24) | Token lifetime |
 | `PORT` / `SERVER_ADDR` | no | Bind address; `PORT` (set by Railway) wins |
 | `ADMIN_REGISTRATION_KEY` | no | Registering `role: admin` requires sending this value as the `X-Admin-Registration-Key` header. Unset → no admin can register. The seed and integration-test scripts read it from the same env var name |
+| `ADMIN_SEED_PASSWORD` | no | Read only by `cargo run --bin seed_admin`, which upserts the default `admin@agriflow.africa` account. Not read by the API server itself |
 | `RESEND_API_KEY` | no | [Resend](https://resend.com) key for the welcome email sent on registration. Unset → emails are skipped (logged) |
 | `EMAIL_FROM` | no | Sender address. Defaults to Resend's test sender `onboarding@resend.dev`, which only delivers to the Resend account owner — verify a domain in Resend and set this before sending to real users |
 
