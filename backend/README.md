@@ -67,6 +67,7 @@ All routes are under `/api`.
 
 | Method | Path                          | Auth           | Notes |
 |--------|-------------------------------|----------------|-------|
+| GET    | `/health`                     | —              | `{"status":"ok","db":"connected"}`, or `503` + `{"status":"error","db":"disconnected"}` if the DB is unreachable -- actually checks, not hardcoded |
 | POST   | `/auth/register`              | —              | buyer / supplier / logistics; `admin` needs the `X-Admin-Registration-Key` header. Sends a welcome email |
 | POST   | `/auth/login`                 | —              | |
 | GET    | `/auth/me`                    | any            | |

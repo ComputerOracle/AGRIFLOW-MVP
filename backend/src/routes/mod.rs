@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod demands;
+pub mod health;
 pub mod listings;
 pub mod transactions;
 
@@ -11,6 +12,7 @@ use crate::state::AppState;
 
 pub fn build(state: AppState) -> Router {
     let api = Router::new()
+        .route("/health", get(health::health))
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
         .route("/auth/me", get(auth::me))
