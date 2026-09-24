@@ -5,10 +5,24 @@ import { logisticsService } from '../services/logisticsService';
 import { transactionService } from '../services/transactionService';
 import { useApp } from '../context/AppContext';
 import { EmptyState } from '../components/ui/EmptyState';
-import { StatusBadge } from '../components/ui/StatusBadge';
 import { formatDate, formatCommodity } from '../utils/format';
 
 type DeliverableFilter = 'all' | 'in_transit' | 'delivered' | 'completed' | 'pending';
+
+const TXN_STATUS_STYLES: Record<string, string> = {
+  COMPLETED: 'bg-green-50 border-green-200 text-green-700',
+  IN_TRANSIT: 'bg-blue-50 border-blue-200 text-blue-700',
+  DELIVERED: 'bg-purple-50 border-purple-200 text-purple-700',
+  PAYMENT_PENDING: 'bg-amber-50 border-amber-200 text-amber-700',
+  PAYMENT_CONFIRMED: 'bg-green-50 border-green-200 text-green-700',
+  ACCEPTED: 'bg-blue-50 border-blue-200 text-blue-700',
+  READY_FOR_PICKUP: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+  PICKED_UP: 'bg-sky-50 border-sky-200 text-sky-700',
+  DELIVERY_CONFIRMED: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  DISPUTED: 'bg-red-50 border-red-200 text-red-700',
+  CANCELLED: 'bg-red-50 border-red-200 text-red-700',
+  REJECTED: 'bg-red-50 border-red-200 text-red-700',
+};
 
 export function ShipmentsPage() {
   const { session } = useApp();
@@ -162,7 +176,7 @@ export function ShipmentsPage() {
                     </div>
                   </div>
                   <div className="text-right flex flex-col items-end gap-1">
-                    {txn && <StatusBadge status={txn.status} size="sm" />}
+                    {txn && <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border inline-block ${TXN_STATUS_STYLES[txn.status] ?? 'bg-gray-50 border-gray-200 text-gray-600'}`}>{txn.status.replace(/_/g,' ')}</span>}
                     <span className="text-[11px] font-semibold text-gray-500 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded-full">
                       {j.status.replace(/_/g, ' ')}
                     </span>

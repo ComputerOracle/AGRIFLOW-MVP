@@ -135,7 +135,7 @@ export function SupplierRequestPage() {
               Buyer
             </h2>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-agri-50 border border-agri-200 flex items-center justify-center font-bold text-gray-900">
+              <div className="w-10 h-10 rounded-lg bg-green-50 border border-green-200 flex items-center justify-center font-bold text-gray-900">
                 {txn?.buyerName?.[0] || 'K'}
               </div>
               <div>
@@ -246,7 +246,7 @@ export function SupplierRequestPage() {
                 </button>
               </div>
             ) : (
-              <div className="pt-2 text-center text-xs font-semibold text-gray-900 bg-agri-50 p-2.5 rounded-lg border border-agri-200">
+              <div className="pt-2 text-center text-xs font-semibold text-gray-900 bg-green-50 p-2.5 rounded-lg border border-green-200">
                 Status: {txn?.status?.replace(/_/g, ' ') || 'ACCEPTED'}
               </div>
             )}

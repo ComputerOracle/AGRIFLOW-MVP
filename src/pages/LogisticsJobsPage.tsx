@@ -15,7 +15,7 @@ const STATUS_COLORS: Record<string, string> = {
   PICKED_UP: 'bg-sky-50 text-sky-800 border-sky-200',
   IN_TRANSIT: 'bg-violet-50 text-violet-800 border-violet-200',
   DELIVERED: 'bg-teal-50 text-teal-800 border-teal-200',
-  COMPLETED: 'bg-agri-50 text-agri-800 border-agri-200',
+  COMPLETED: 'bg-green-50 text-green-800 border-green-200',
   FAILED: 'bg-red-50 text-red-800 border-red-200',
 };
 

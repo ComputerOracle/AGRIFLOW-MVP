@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, MapPin, Calendar } from 'lucide-react';
 import { supplyService } from '../services/supplyService';
-import { Card } from '../components/ui/Card';
 import { VerifiedBadge } from '../components/ui/VerifiedBadge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatCurrency, formatDate, formatCommodity, COMMODITY_ICONS } from '../utils/format';
@@ -92,7 +91,7 @@ export function SupplyListPage() {
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((listing) => (
-            <Card key={listing.id} hover onClick={() => navigate(`/app/supply/${listing.id}`)}>
+            <div key={listing.id} className="bg-white rounded-xl border border-gray-200 shadow-xs hover:border-gray-300 cursor-pointer transition-all" onClick={() => navigate(`/app/supply/${listing.id}`)}>
               <div className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="text-4xl">{COMMODITY_ICONS[listing.commodity] ?? '🌾'}</div>
@@ -125,7 +124,7 @@ export function SupplyListPage() {
                   <div className="text-xs text-gray-400 mt-0.5">Total value: {formatCurrency(listing.quantity * listing.pricePerUnit)}</div>
                 </div>
               </div>
-            </Card>
+            </div>
           ))}
         </div>
       )}

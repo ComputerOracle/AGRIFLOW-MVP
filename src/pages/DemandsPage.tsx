@@ -58,15 +58,15 @@ export function DemandsPage() {
     }
   };
 
-  const openCount = demands.filter(d => d.status === 'open' || d.status === 'active').length;
-  const matchedCount = demands.filter(d => d.status === 'matched').length;
-  const closedCount = demands.filter(d => d.status === 'closed' || d.status === 'expired').length;
+  const openCount = demands.filter(d => d.status === 'open').length;
+  const matchedCount = demands.filter(d => d.status === 'matched' || d.status === 'fulfilled').length;
+  const closedCount = demands.filter(d => d.status === 'closed').length;
 
   const filtered = demands.filter(d => {
     if (filter === 'all') return true;
-    if (filter === 'open') return d.status === 'open' || d.status === 'active';
-    if (filter === 'matched') return d.status === 'matched';
-    if (filter === 'closed') return d.status === 'closed' || d.status === 'expired';
+    if (filter === 'open') return d.status === 'open';
+    if (filter === 'matched') return d.status === 'matched' || d.status === 'fulfilled';
+    if (filter === 'closed') return d.status === 'closed';
     return true;
   });
 
@@ -167,9 +167,9 @@ export function DemandsPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-bold text-gray-900">{formatCommodity(d.commodity)}</h3>
                         <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold border uppercase tracking-wide ${
-                          d.status === 'matched'
+                          d.status === 'matched' || d.status === 'fulfilled'
                             ? 'bg-green-50 border-green-200 text-green-700'
-                            : d.status === 'closed' || d.status === 'expired'
+                            : d.status === 'closed'
                             ? 'bg-gray-50 border-gray-200 text-gray-500'
                             : 'bg-amber-50 border-amber-200 text-amber-700'
                         }`}>

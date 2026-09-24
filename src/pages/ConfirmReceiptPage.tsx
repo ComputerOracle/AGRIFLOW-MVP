@@ -216,7 +216,7 @@ export function ConfirmReceiptPage() {
                   type="checkbox"
                   checked={qtyChecked}
                   onChange={(e) => setQtyChecked(e.target.checked)}
-                  className="mt-0.5 accent-agri-700 w-4 h-4 rounded"
+                  className="mt-0.5 accent-gray-900 w-4 h-4 rounded"
                 />
                 <div>
                   <div className="font-semibold text-gray-900">Quantity matches the order</div>
@@ -229,7 +229,7 @@ export function ConfirmReceiptPage() {
                   type="checkbox"
                   checked={qualityChecked}
                   onChange={(e) => setQualityChecked(e.target.checked)}
-                  className="mt-0.5 accent-agri-700 w-4 h-4 rounded"
+                  className="mt-0.5 accent-gray-900 w-4 h-4 rounded"
                 />
                 <div>
                   <div className="font-semibold text-gray-900">Quality matches the agreed grade</div>
@@ -242,7 +242,7 @@ export function ConfirmReceiptPage() {
                   type="checkbox"
                   checked={undamagedChecked}
                   onChange={(e) => setUndamagedChecked(e.target.checked)}
-                  className="mt-0.5 accent-agri-700 w-4 h-4 rounded"
+                  className="mt-0.5 accent-gray-900 w-4 h-4 rounded"
                 />
                 <div>
                   <div className="font-semibold text-gray-900">Goods are undamaged</div>

@@ -3,10 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowRightLeft } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import { useApp } from '../context/AppContext';
-import { StatusBadge } from '../components/ui/StatusBadge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { formatCurrency, formatDateTime, formatCommodity } from '../utils/format';
 import type { Transaction } from '../types';
+
+const STATUS_PILL_CLASSES: Record<string, string> = {
+  COMPLETED: 'status-pill-green',
+  IN_TRANSIT: 'status-pill-blue',
+  DELIVERED: 'status-pill-purple',
+  PAYMENT_PENDING: 'status-pill-amber',
+  REJECTED: 'status-pill-red',
+  CANCELLED: 'status-pill-red',
+  DISPUTED: 'status-pill-red',
+  ACCEPTED: 'status-pill-blue',
+  PENDING: 'status-pill-gray',
+  PENDING_SUPPLIER_ACCEPTANCE: 'status-pill-gray',
+  PAYMENT_CONFIRMED: 'status-pill-green',
+  READY_FOR_PICKUP: 'status-pill-blue',
+  PICKED_UP: 'status-pill-blue',
+  DELIVERY_CONFIRMED: 'status-pill-green',
+  LOGISTICS_ASSIGNED: 'status-pill-blue',
+  LOGISTICS_ACCEPTED: 'status-pill-blue',
+  LOGISTICS_PENDING: 'status-pill-amber',
+  LOGISTICS_REJECTED: 'status-pill-red',
+  PAYMENT_FAILED: 'status-pill-red',
+  PAYMENT_CANCELLED: 'status-pill-red',
+  DELIVERY_FAILED: 'status-pill-red',
+};
 
 export function TransactionsPage() {
   const { session } = useApp();
@@ -79,7 +102,7 @@ export function TransactionsPage() {
                     <td className="px-5 py-3.5 text-gray-600">{session.role === 'buyer' ? t.supplierName : t.buyerName}</td>
                     <td className="px-5 py-3.5 text-gray-600">{t.quantity} {t.unit}</td>
                     <td className="px-5 py-3.5 font-medium text-gray-800">{formatCurrency(t.totalAmount, t.currency)}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={t.status} /></td>
+                    <td className="px-5 py-3.5"><span className={`status-pill ${STATUS_PILL_CLASSES[t.status] ?? 'status-pill-gray'}`}>{t.status.replace(/_/g,' ')}</span></td>
                     <td className="px-5 py-3.5 text-xs text-gray-400">{formatDateTime(t.updatedAt)}</td>
                   </tr>
                 ))}

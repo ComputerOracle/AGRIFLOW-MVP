@@ -161,12 +161,6 @@ export function LoginPage() {
             </button>
           </form>
 
-          {/* Demo hint */}
-          <div className="mt-5 p-3 bg-gray-50 rounded-lg border border-gray-100">
-            <p className="text-xs text-gray-500 font-medium mb-1">Demo credentials</p>
-            <p className="text-xs text-gray-400">buyer@kolafarms.com · agriflow123</p>
-          </div>
-
           <p className="mt-6 text-center text-sm text-gray-500">
             Don&apos;t have an account?{' '}
             <Link to="/register" className="font-semibold text-gray-900 hover:underline">

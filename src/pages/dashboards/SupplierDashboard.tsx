@@ -4,7 +4,6 @@ import { Plus } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { transactionService } from '../../services/transactionService';
 import { supplyService } from '../../services/supplyService';
-import { StatusBadge } from '../../components/ui/StatusBadge';
 import { EscrowEarningsCard } from '../../components/wallet/EscrowEarningsCard';
 import { formatCurrency, formatCommodity } from '../../utils/format';
 import type { Transaction, SupplyListing } from '../../types';
