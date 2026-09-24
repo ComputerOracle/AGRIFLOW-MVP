@@ -189,7 +189,7 @@ pub async fn list_mine(
     Ok(Json(txns))
 }
 
-async fn load_transaction(state: &AppState, id: &str) -> AppResult<Transaction> {
+pub(crate) async fn load_transaction(state: &AppState, id: &str) -> AppResult<Transaction> {
     sqlx::query_as!(
         Transaction,
         r#"SELECT id, listing_id, demand_id, buyer_id, buyer_name, supplier_id, supplier_name,
@@ -323,13 +323,18 @@ fn assert_is_buyer_on_txn(auth: &AuthUser, txn: &Transaction) -> AppResult<()> {
 
 /// Applies one system-actor transition inside an already-open db transaction,
 /// checking it against the state machine the same way the generic
-/// `transition` handler does, and records the event. Used by the mock
-/// payment endpoints below, which are the only place a request is allowed
-/// to act as `Actor::System` — see their doc comments for why.
-async fn apply_system_transition(
+/// `transition` handler does, and records the event. `actor`/`actor_name`/
+/// `actor_role` drive both the state-machine check and the recorded event
+/// -- shared by `apply_system_transition` (payment mock endpoints, which
+/// are the only place a request is allowed to act as `Actor::System`) and
+/// `logistics.rs` (real Logistics/Admin actors driving shipment status).
+pub(crate) async fn apply_transition(
     db_tx: &mut sqlx::PgConnection,
     id: &str,
     to: TransactionStatus,
+    actor: Actor,
+    actor_name: &str,
+    actor_role: &str,
     note: &str,
 ) -> AppResult<Transaction> {
     let current = sqlx::query_as!(
@@ -346,7 +351,7 @@ async fn apply_system_transition(
 
     let from = TransactionStatus::from_str(&current.status)
         .map_err(|e| AppError::Internal(anyhow::anyhow!(e)))?;
-    let check = can_actor_transition(from, to, Actor::System);
+    let check = can_actor_transition(from, to, actor);
     if !check.allowed {
         return Err(AppError::Conflict(
             check.reason.unwrap_or_else(|| "Transition not permitted.".into()),
@@ -370,9 +375,11 @@ async fn apply_system_transition(
 
     sqlx::query!(
         r#"INSERT INTO transaction_events (transaction_id, status, actor, actor_role, note)
-           VALUES ($1, $2, 'AgriFlow System', 'system', $3)"#,
+           VALUES ($1, $2, $3, $4, $5)"#,
         id,
         to.as_str(),
+        actor_name,
+        actor_role,
         note,
     )
     .execute(&mut *db_tx)
@@ -381,7 +388,16 @@ async fn apply_system_transition(
     Ok(updated)
 }
 
-async fn history_for(state: &AppState, id: &str) -> AppResult<Vec<TransactionEvent>> {
+async fn apply_system_transition(
+    db_tx: &mut sqlx::PgConnection,
+    id: &str,
+    to: TransactionStatus,
+    note: &str,
+) -> AppResult<Transaction> {
+    apply_transition(db_tx, id, to, Actor::System, "AgriFlow System", "system", note).await
+}
+
+pub(crate) async fn history_for(state: &AppState, id: &str) -> AppResult<Vec<TransactionEvent>> {
     Ok(sqlx::query_as!(
         TransactionEvent,
         r#"SELECT id, transaction_id, status, actor, actor_role, note, created_at
@@ -432,6 +448,12 @@ pub async fn mock_confirm_payment(
     )
     .await?;
     db_tx.commit().await?;
+
+    crate::routes::logistics::create_job_for_transaction(&state, &transaction).await?;
+    // create_job_for_transaction sets transactions.logistics_job_id in a
+    // separate statement after the transition above already snapshotted
+    // `transaction` -- reload so this response doesn't show a stale null.
+    let transaction = load_transaction(&state, &id).await?;
 
     let history = history_for(&state, &id).await?;
     Ok(Json(TransactionWithHistory { transaction, history }))

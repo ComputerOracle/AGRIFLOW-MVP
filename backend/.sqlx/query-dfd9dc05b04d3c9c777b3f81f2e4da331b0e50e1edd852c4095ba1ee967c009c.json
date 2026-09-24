@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO users (id, email, password_hash, name, role, organization_name, phone, location, verified, profile_complete)\n        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, TRUE)\n        RETURNING id, email, password_hash, name, role as \"role: _\", organization_name, phone, location, verified, profile_complete, created_at, updated_at\n        ",
+  "query": "\n            INSERT INTO users (id, email, password_hash, name, role, organization_name, phone, location, verified, profile_complete)\n            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, TRUE, TRUE)\n            RETURNING id, email, password_hash, name, role as \"role: _\", organization_name, phone, location, verified, profile_complete, created_at, updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -163,5 +163,5 @@
       false
     ]
   },
-  "hash": "1e4e6f307cb94c8119657fe4227b32bd9dfb525aaa3f3825f25181b0c539a55b"
+  "hash": "dfd9dc05b04d3c9c777b3f81f2e4da331b0e50e1edd852c4095ba1ee967c009c"
 }
