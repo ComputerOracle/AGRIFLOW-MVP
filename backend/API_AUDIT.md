@@ -47,14 +47,20 @@ browser bundle regardless of expiry, and a dynamically-issued key with no
 credential check on issuance doesn't stop scripted abuse either. User-role
 gating was judged sufficient for now.
 
-### 2. Decimal fields serialize as JSON strings, not numbers
-`quantity`, `pricePerUnit`, `totalAmount`, and `indicativeBudget` all come
-back as `"20"` instead of `20` (a `rust_decimal::Decimal` default). The
-frontend's `src/types/index.ts` declares these fields as `number` — wired
-up as-is, arithmetic on them will silently string-concatenate or produce
-`NaN`. Fix: serialize `Decimal` as a JSON number (e.g. via
-`rust_decimal::serde::float`), or explicitly document that every consumer
-must `parseFloat()` on receipt.
+### 2. Decimal fields serialize as JSON strings, not numbers — ✅ FIXED (2026-09-24)
+`quantity`, `pricePerUnit`, `totalAmount`, and `indicativeBudget` all came
+back as `"20"` instead of `20` (a `rust_decimal::Decimal` default). Fixed
+by enabling the `serde-with-float` feature on `rust_decimal` and annotating
+every response-facing `Decimal` field (`SupplyListing`, `DemandRequest`,
+`Transaction`) with `#[serde(with = "rust_decimal::serde::float")]`. Only
+the *response* side was changed — request DTOs (`CreateListingRequest`,
+`CreateDemandRequest`, `CreateTransactionRequest`, `UpdateListingRequest`)
+were left on the default (flexible) `Decimal` deserializer, since they
+already accepted numbers correctly and nothing needed fixing there.
+Verified: `GET /listings`, `/demands`, `/transactions` now return unquoted
+JSON numbers; `POST /listings` still accepts and round-trips correctly.
+The frontend's `apiMappers.ts` coercion (`num()`) is unaffected — it
+already tolerates receiving real numbers instead of strings.
 
 ### 3. The trade lifecycle dead-ends at `PAYMENT_PENDING`
 Confirmed structurally, not just by the "not built yet" note in
