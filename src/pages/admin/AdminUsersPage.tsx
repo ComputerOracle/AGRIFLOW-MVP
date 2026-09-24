@@ -20,7 +20,7 @@ export function AdminUsersPage() {
 
   if (sorted.length === 0) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto space-y-5">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Users</h1>
         <EmptyState
           icon={<Users className="w-7 h-7" />}
@@ -32,7 +32,7 @@ export function AdminUsersPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Users ({users.length})</h1>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">

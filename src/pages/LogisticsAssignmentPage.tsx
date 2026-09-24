@@ -202,7 +202,7 @@ export function LogisticsAssignmentPage() {
                   type="button"
                   disabled={acting}
                   onClick={handleAccept}
-                  className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-50"
+                  className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors shadow-xs disabled:opacity-50"
                 >
                   {acting ? 'Processing...' : 'Accept assignment'}
                 </button>
@@ -216,7 +216,7 @@ export function LogisticsAssignmentPage() {
                 </button>
               </div>
             ) : (
-              <div className="pt-2 text-center text-xs font-semibold text-agri-800 bg-agri-50 p-2.5 rounded-lg border border-agri-200">
+              <div className="pt-2 text-center text-xs font-semibold text-gray-900 bg-agri-50 p-2.5 rounded-lg border border-agri-200">
                 Job Status: {job?.status?.replace(/_/g, ' ')}
               </div>
             )}

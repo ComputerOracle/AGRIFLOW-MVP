@@ -47,7 +47,7 @@ export function SupplyListPage() {
   ];
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Supply Discovery</h1>
         <p className="text-sm text-gray-500 mt-0.5">Browse available agricultural supply from verified and unverified suppliers.</p>
@@ -62,14 +62,14 @@ export function SupplyListPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search commodity, supplier, location..."
-              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-agri-500 focus:border-agri-500"
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-gray-900"
             />
           </div>
         </div>
         <select
           value={filterCommodity}
           onChange={(e) => setFilterCommodity(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-agri-500"
+          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
         >
           <option value="">All commodities</option>
           {commodities.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
@@ -77,7 +77,7 @@ export function SupplyListPage() {
         <select
           value={filterVerified}
           onChange={(e) => setFilterVerified(e.target.value)}
-          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-agri-500"
+          className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
         >
           <option value="">All suppliers</option>
           <option value="true">Verified only</option>
@@ -108,7 +108,7 @@ export function SupplyListPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Price</span>
-                    <span className="font-semibold text-agri-700">{formatCurrency(listing.pricePerUnit)}/{listing.unit}</span>
+                    <span className="font-semibold text-gray-900">{formatCurrency(listing.pricePerUnit)}/{listing.unit}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
                     <MapPin className="w-3 h-3" />

@@ -85,7 +85,7 @@ export function ShipmentsPage() {
   );
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -113,7 +113,7 @@ export function ShipmentsPage() {
               onClick={() => setFilter(tab.id as DeliverableFilter)}
               className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                 filter === tab.id
-                  ? 'bg-agri-700 text-white shadow-xs'
+                  ? 'bg-gray-900 text-white shadow-xs'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -129,7 +129,7 @@ export function ShipmentsPage() {
             placeholder="Search deliverables…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-agri-700 focus:bg-white"
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-gray-900 focus:bg-white"
           />
         </div>
       </div>
@@ -147,7 +147,7 @@ export function ShipmentsPage() {
             return (
               <div
                 key={j.id}
-                className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs hover:border-agri-400 transition-all space-y-4"
+                className="bg-white border border-gray-200 rounded-xl p-5 shadow-xs hover:border-gray-300 transition-all space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -170,7 +170,7 @@ export function ShipmentsPage() {
                 </div>
 
                 <div className="flex items-center gap-1.5 text-xs text-gray-700">
-                  <MapPin className="w-3.5 h-3.5 text-agri-600 shrink-0" />
+                  <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
                   <span className="font-medium">{j.pickupLocation}</span>
                   <span className="text-gray-400">→</span>
                   <span className="font-medium">{j.deliveryLocation}</span>
@@ -188,7 +188,7 @@ export function ShipmentsPage() {
                     <button
                       type="button"
                       onClick={() => navigate(`/app/transactions/${j.transactionId}/track`)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-agri-700 hover:bg-agri-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white rounded-lg text-xs font-semibold transition-colors shadow-xs cursor-pointer"
                     >
                       <Navigation className="w-3 h-3" />
                       Live GPS Map

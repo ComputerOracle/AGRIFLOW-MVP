@@ -76,8 +76,8 @@ export function AdminDashboard() {
   const recent = [...allTxns].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()).slice(0, 6);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="flex items-start justify-between mb-6">
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div className="flex items-start justify-between mb-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Operations Dashboard</h1>
           <p className="text-sm text-gray-500 mt-0.5">AgriFlow · Transaction coordination overview</p>
@@ -114,10 +114,10 @@ export function AdminDashboard() {
       )}
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
           { label: 'Total Users', value: allUsers.length, icon: <Users className="w-4 h-4" />, color: 'bg-gray-50 border-gray-200 text-gray-900', path: '/app/admin/users' },
-          { label: 'Active Suppliers', value: suppliers, icon: <Users className="w-4 h-4" />, color: 'bg-agri-50 border-agri-200 text-agri-900', path: '/app/admin/users' },
+          { label: 'Active Suppliers', value: suppliers, icon: <Users className="w-4 h-4" />, color: 'bg-green-50 border-green-200 text-green-700', path: '/app/admin/users' },
           { label: 'Active Buyers', value: buyers, icon: <Users className="w-4 h-4" />, color: 'bg-blue-50 border-blue-200 text-blue-900', path: '/app/admin/users' },
           { label: 'Logistics Providers', value: logistics, icon: <Truck className="w-4 h-4" />, color: 'bg-violet-50 border-violet-200 text-violet-900', path: '/app/admin/users' },
           { label: 'Open Transactions', value: allTxns.filter((t) => !['COMPLETED','CANCELLED','REJECTED'].includes(t.status)).length, icon: <ArrowRightLeft className="w-4 h-4" />, color: 'bg-orange-50 border-orange-200 text-orange-900', path: '/app/admin/transactions' },
@@ -136,7 +136,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Transaction pipeline */}
-      <Card className="mb-6">
+      <Card className="mb-5">
         <div className="px-5 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-gray-800">Transaction Pipeline</h2>
         </div>
@@ -156,7 +156,7 @@ export function AdminDashboard() {
       <Card>
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="font-semibold text-gray-800">All Transactions</h2>
-          <button onClick={() => navigate('/app/admin/transactions')} className="text-xs text-agri-600 font-medium hover:text-agri-700">View all</button>
+          <button onClick={() => navigate('/app/admin/transactions')} className="text-xs text-gray-500 font-medium hover:text-gray-800">View all</button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

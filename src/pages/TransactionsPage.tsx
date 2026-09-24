@@ -35,7 +35,7 @@ export function TransactionsPage() {
   const sorted = [...txns].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">
         {session.role === 'buyer' ? 'My Transactions' : session.role === 'supplier' ? 'Transaction Requests' : 'All Transactions'}
       </h1>

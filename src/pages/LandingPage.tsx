@@ -150,95 +150,88 @@ function AnimatedDashboard() {
         )}
       </div>
 
-      {/* Layout */}
-      <div style={{ display:'flex', height:360 }}>
-        {/* Sidebar */}
-        <div style={{ width:180, background:'#0d1a10', borderRight:'1px solid rgba(255,255,255,.06)', display:'flex', flexDirection:'column', flexShrink:0 }}>
-          <div style={{ padding:'14px 16px', borderBottom:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ width:28, height:28, borderRadius:8, background:'#22c55e', display:'flex', alignItems:'center', justifyContent:'center' }}>
-              <Leaf size={14} color="#052e16"/>
-            </div>
-            <div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#fff', lineHeight:1 }}>AgriFlow</div>
-              <div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginTop:2 }}>Trade Platform</div>
-            </div>
+      {/* Horizontal nav bar */}
+      <div style={{ background:'#fff', borderBottom:'1px solid #e5e7eb', padding:'0 18px', display:'flex', alignItems:'center', gap:0, height:44 }}>
+        {/* Logo */}
+        <div style={{ display:'flex', alignItems:'center', gap:7, marginRight:20 }}>
+          <div style={{ width:22, height:22, borderRadius:6, background:'#0c1e0e', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Leaf size={11} color="#4ade80"/>
           </div>
-          <nav style={{ flex:1, padding:'10px 8px', display:'flex', flexDirection:'column', gap:2 }}>
-            {[
-              { icon:BarChart3,       label:'Dashboard',    active:true  },
-              { icon:Package,        label:'Supply',       active:false },
-              { icon:Search,         label:'Discover',     active:false },
-              { icon:ArrowRightLeft, label:'Transactions', active:false },
-              { icon:Truck,          label:'Logistics',    active:false },
-            ].map(({ icon:Icon, label, active }) => (
-              <div key={label} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:8, fontSize:12, fontWeight:500, color:active?'#22c55e':'rgba(255,255,255,.3)', background:active?'rgba(34,197,94,.1)':'transparent', borderLeft:`2px solid ${active?'#22c55e':'transparent'}` }}>
-                <Icon size={13}/>{label}
-              </div>
-            ))}
-          </nav>
-          <div style={{ padding:'12px 14px', borderTop:'1px solid rgba(255,255,255,.06)', display:'flex', alignItems:'center', gap:8 }}>
-            <div style={{ width:26, height:26, borderRadius:'50%', background:'rgba(34,197,94,.15)', border:'1px solid rgba(34,197,94,.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#22c55e' }}>JD</div>
-            <div>
-              <div style={{ fontSize:11, fontWeight:600, color:'#fff' }}>John Doe</div>
-              <div style={{ fontSize:9, color:'#22c55e' }}>Buyer · Verified</div>
+          <span style={{ fontSize:12, fontWeight:700, color:'#111' }}>AgriFlow</span>
+        </div>
+        {/* Nav tabs */}
+        <div style={{ display:'flex', gap:2, flex:1 }}>
+          {[
+            { label:'Dashboard', active:true },
+            { label:'Demands',   active:false },
+            { label:'Matches',   active:false },
+            { label:'Transactions', active:false },
+            { label:'Deliveries',   active:false },
+          ].map(({ label, active }) => (
+            <div key={label} style={{ padding:'0 10px', height:44, display:'flex', alignItems:'center', fontSize:11, fontWeight:500, color:active?'#111':'#9ca3af', background:active?'#f3f4f6':'transparent', borderRadius:6 }}>
+              {label}
             </div>
+          ))}
+        </div>
+        {/* Right: Live badge + avatar */}
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ fontSize:9, fontWeight:600, color:'#16a34a', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:999, padding:'2px 8px', display:'flex', alignItems:'center', gap:3 }}>
+            <span style={{ width:4, height:4, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'dotPulse 1.4s infinite' }}/>
+            Live
           </div>
+          <div style={{ width:24, height:24, borderRadius:'50%', background:'#111', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff' }}>JD</div>
+        </div>
+      </div>
+
+      {/* Content area */}
+      <div style={{ background:'#f8fafb', display:'flex', flexDirection:'column', height:316, overflow:'hidden' }}>
+        {/* Page header */}
+        <div style={{ padding:'14px 18px 0', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+          <div>
+            <div style={{ fontSize:14, fontWeight:800, color:'#111', letterSpacing:'-0.3px' }}>Good afternoon, John.</div>
+            <div style={{ fontSize:9, color:'#9ca3af', marginTop:2 }}>0 active transactions · 1 open demand</div>
+          </div>
+          <div style={{ fontSize:10, fontWeight:700, color:'#fff', background:'#111', borderRadius:7, padding:'5px 12px' }}>+ Create Demand</div>
         </div>
 
-        {/* Content */}
-        <div style={{ flex:1, background:'#f0f2f0', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-          {/* Topbar */}
-          <div style={{ padding:'10px 18px', background:'#fff', borderBottom:'1px solid #e5e7eb', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#111' }}>Buyer Dashboard</div>
-              <div style={{ fontSize:10, color:'#9ca3af' }}>September 2026</div>
-            </div>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ fontSize:10, fontWeight:600, color:'#16a34a', background:'#f0fdf4', border:'1px solid #bbf7d0', borderRadius:999, padding:'3px 10px', display:'flex', alignItems:'center', gap:4 }}>
-                <span style={{ width:5, height:5, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'dotPulse 1.4s infinite' }}/>
-                Live
+        <div style={{ flex:1, padding:'12px 18px 14px', display:'flex', flexDirection:'column', gap:10, overflow:'hidden' }}>
+          {/* Stat cards */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+            {statDefs.map((s, idx) => (
+              <div key={s.label} style={{ background:'#fff', border:'1px solid #e5e7eb', borderRadius:10, padding:'10px 12px', transition:'all .4s ease' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                  <span style={{ width:5, height:5, borderRadius:'50%', background:s.c, display:'inline-block' }}/>
+                  <span style={{ fontSize:9, fontWeight:700, color:s.c, transition:'all .3s' }}>{stats[idx].ch}</span>
+                </div>
+                <div style={{ fontSize:16, fontWeight:800, color:'#111', lineHeight:1, transition:'all .3s' }}>{stats[idx].v}</div>
+                <div style={{ fontSize:9, color:'#6b7280', marginTop:3 }}>{s.label}</div>
               </div>
-              <div style={{ width:28, height:28, borderRadius:8, background:'#f9fafb', border:'1px solid #e5e7eb', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <TrendingUp size={13} color="#22c55e"/>
-              </div>
-            </div>
+            ))}
           </div>
 
-          <div style={{ flex:1, padding:'14px', display:'flex', flexDirection:'column', gap:12, overflow:'hidden' }}>
-            {/* Stat cards */}
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-              {statDefs.map((s, idx) => (
-                <div key={s.label} style={{ background:s.bg, border:`1px solid ${s.bd}`, borderRadius:10, padding:'10px 12px', transition:'all .4s ease' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                    <s.icon size={13} color={s.c}/>
-                    <span style={{ fontSize:9, fontWeight:700, color:s.c, transition:'all .3s' }}>{stats[idx].ch}</span>
-                  </div>
-                  <div style={{ fontSize:16, fontWeight:800, color:'#111', lineHeight:1, transition:'all .3s' }}>{stats[idx].v}</div>
-                  <div style={{ fontSize:9, color:'#6b7280', marginTop:3 }}>{s.label}</div>
-                </div>
-              ))}
-            </div>
-
-            {/* Table */}
-            <div style={{ flex:1, background:'#fff', borderRadius:10, border:'1px solid #e5e7eb', overflow:'hidden' }}>
-              <div style={{ padding:'8px 14px', borderBottom:'1px solid #f3f4f6', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:11, fontWeight:700, color:'#111' }}>Recent Transactions</span>
-                <span style={{ fontSize:10, color:'#16a34a', fontWeight:600 }}>View all →</span>
+          {/* Table */}
+          <div style={{ flex:1, background:'#fff', borderRadius:10, border:'1px solid #e5e7eb', overflow:'hidden' }}>
+            <div style={{ padding:'7px 14px', borderBottom:'1px solid #f3f4f6', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontSize:11, fontWeight:700, color:'#111' }}>Active Transactions</span>
+              <div style={{ display:'flex', gap:6 }}>
+                {['All','Needs action','In transit'].map((t, i) => (
+                  <span key={t} style={{ fontSize:9, fontWeight:600, color:i===0?'#111':'#9ca3af', background:i===0?'#f3f4f6':'transparent', padding:'2px 7px', borderRadius:5 }}>{t}</span>
+                ))}
               </div>
-              {rows.map((r, idx) => {
-                const st = rowStatuses[idx];
-                const { sc, sb } = STATUS_STYLE[st] ?? STATUS_STYLE['Matched'];
-                return (
-                  <div key={r.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 14px', borderBottom:'1px solid #f9fafb' }}>
-                    <span style={{ fontSize:9, fontFamily:'monospace', color:'#9ca3af', flexShrink:0 }}>{r.id}</span>
-                    <span style={{ flex:1, fontSize:10, fontWeight:600, color:'#111' }}>{r.item}</span>
-                    <span style={{ fontSize:9, color:'#9ca3af' }}>{r.qty}</span>
-                    <span style={{ fontSize:10, fontWeight:700, color:'#111', width:52, textAlign:'right' }}>{r.val}</span>
-                    <span style={{ fontSize:9, fontWeight:700, color:sc, background:sb, padding:'2px 8px', borderRadius:999, transition:'all .4s ease', minWidth:60, textAlign:'center' }}>{st}</span>
-                  </div>
-                );
-              })}
             </div>
+            {rows.map((r, idx) => {
+              const st = rowStatuses[idx];
+              const { sc, sb } = STATUS_STYLE[st] ?? STATUS_STYLE['Matched'];
+              return (
+                <div key={r.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'6px 14px', borderBottom:'1px solid #f9fafb' }}>
+                  <span style={{ fontSize:9, fontFamily:'monospace', color:'#9ca3af', flexShrink:0 }}>{r.id}</span>
+                  <span style={{ flex:1, fontSize:10, fontWeight:600, color:'#111' }}>{r.item}</span>
+                  <span style={{ fontSize:9, color:'#9ca3af' }}>{r.qty}</span>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#111', width:52, textAlign:'right' }}>{r.val}</span>
+                  <span style={{ fontSize:9, fontWeight:700, color:sc, background:sb, padding:'2px 8px', borderRadius:999, transition:'all .4s ease', minWidth:60, textAlign:'center' }}>{st}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -689,30 +682,30 @@ export function LandingPage() {
           {heroVisible && (
             <div className="fu d1">
               <h1 className="hero-h1" style={{ fontSize: 'clamp(44px,6.5vw,72px)', fontWeight: 900, letterSpacing: '-2.5px', lineHeight: 1.04, margin: 0, color: '#fff' }}>
-                Move agricultural commerce<br />
-                <span className="shimmer-text">from fragmented to connected.</span>
+                Trade produce with<br />
+                <span className="shimmer-text">people you can trust.</span>
               </h1>
             </div>
           )}
 
           {/* Sub */}
           {heroVisible && (
-            <p className="fu d2" style={{ fontSize: 17, color: 'rgba(255,255,255,.45)', maxWidth: 560, lineHeight: 1.75, margin: 0, fontWeight: 400 }}>
-              AgriFlow coordinates the complete transaction between buyers, suppliers, logistics carriers, and operations — from commodity discovery to verified delivery and automated escrow payout.
+            <p className="fu d2" style={{ fontSize: 17, color: 'rgba(255,255,255,.45)', maxWidth: 540, lineHeight: 1.75, margin: 0, fontWeight: 400 }}>
+              Connect with verified buyers and suppliers across Nigeria. Every payment is held in escrow until delivery is confirmed — zero upfront risk for everyone in the chain.
             </p>
           )}
 
           {/* CTAs */}
           {heroVisible && (
             <div className="fu d3" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
-              <button className="cta-btn-primary" onClick={() => navigate('/login')}>
-                Access Platform <ArrowRight size={15} />
+              <button className="cta-btn-primary" onClick={() => navigate('/register')}>
+                Start selling today <ArrowRight size={15} />
               </button>
               <button className="cta-btn-ghost" style={{ color: 'rgba(255,255,255,.65)', borderColor: 'rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.1)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.3)'; e.currentTarget.style.color = '#fff'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.18)'; e.currentTarget.style.color = 'rgba(255,255,255,.65)'; }}
-                onClick={() => navigate('/register')}>
-                Create Free Account
+                onClick={() => navigate('/demands/new')}>
+                Post your first demand
               </button>
             </div>
           )}
@@ -749,14 +742,14 @@ export function LandingPage() {
         <div ref={statsIn.ref} style={{ maxWidth: 1000, margin: '0 auto' }}>
           <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
             {[
-              { to: 2400, suffix: '+', label: 'Active Listings',      sub: 'updated daily' },
-              { to: 98,   suffix: '%', label: 'Escrow Release Rate',  sub: 'on confirmed delivery' },
-              { to: 340,  suffix: '+', label: 'Verified Suppliers',   sub: 'across the network' },
-              { to: 18,   suffix: 'h', label: 'Avg. Match Time',      sub: 'demand to supply' },
+              { prefix: '₦', to: 2.4, suffix: 'bn', label: 'Trade Value',            sub: 'facilitated on-chain' },
+              { prefix: '',  to: 340,  suffix: '+',   label: 'Verified Suppliers',     sub: 'across the network' },
+              { prefix: '',  to: 98,   suffix: '%',   label: 'Escrow Release Rate',    sub: 'on confirmed delivery' },
+              { prefix: '',  to: 0,    suffix: '',    label: 'Disputes Lost to Fraud', sub: 'zero counterparty risk' },
             ].map((s, i) => (
               <div key={i} style={{ textAlign: 'center', padding: '28px 20px', background: '#f9fafb', borderRadius: 16, border: '1px solid #f3f4f6', opacity: statsIn.visible ? 1 : 0, transform: statsIn.visible ? 'translateY(0)' : 'translateY(20px)', transition: `opacity .6s ${i * 80}ms, transform .6s cubic-bezier(.16,1,.3,1) ${i * 80}ms` }}>
                 <div style={{ fontSize: 40, fontWeight: 900, letterSpacing: '-1.5px', color: '#111', lineHeight: 1 }}>
-                  <CountUp to={s.to} suffix={s.suffix} active={statsIn.visible} />
+                  {s.prefix}<CountUp to={s.to} suffix={s.suffix} active={statsIn.visible} />
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#15803d', marginTop: 8 }}>{s.label}</div>
                 <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>{s.sub}</div>
@@ -775,7 +768,7 @@ export function LandingPage() {
           <div style={{ textAlign: 'center', marginBottom: 52, opacity: stepsIn.visible ? 1 : 0, transform: stepsIn.visible ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity .6s, transform .6s cubic-bezier(.16,1,.3,1)' }}>
             <div className="pill" style={{ marginBottom: 18 }}>Transaction Flow</div>
             <h2 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 900, letterSpacing: '-1.5px', margin: '0 0 14px', color: '#111' }}>
-              One complete trade loop, end to end.
+              Four steps from demand to delivery.
             </h2>
             <p style={{ fontSize: 15, color: '#6b7280', maxWidth: 500, margin: '0 auto', lineHeight: 1.7 }}>
               Every transaction is verified, escrow-secured, tracked, and confirmed — from discovery to automated payout.
@@ -804,10 +797,10 @@ export function LandingPage() {
           <div style={{ textAlign: 'center', marginBottom: 52, opacity: featIn.visible ? 1 : 0, transform: featIn.visible ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity .6s, transform .6s cubic-bezier(.16,1,.3,1)' }}>
             <div className="pill" style={{ marginBottom: 18 }}>Platform Capabilities</div>
             <h2 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 900, letterSpacing: '-1.5px', margin: '0 0 14px', color: '#111' }}>
-              Built for trust at every step.
+              Nobody pays into thin air.
             </h2>
             <p style={{ fontSize: 15, color: '#6b7280', maxWidth: 500, margin: '0 auto', lineHeight: 1.7 }}>
-              Purpose-built to eliminate the friction, fraud, and fragmentation holding agricultural commerce back.
+              Every naira is held in a Stellar smart-contract escrow and only released when the buyer confirms receipt — protecting every party in the chain.
             </p>
           </div>
           <div className="features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
@@ -830,10 +823,10 @@ export function LandingPage() {
           <div style={{ textAlign: 'center', marginBottom: 52, opacity: rolesIn.visible ? 1 : 0, transform: rolesIn.visible ? 'translateY(0)' : 'translateY(20px)', transition: 'opacity .6s, transform .6s cubic-bezier(.16,1,.3,1)' }}>
             <div className="pill" style={{ marginBottom: 18 }}>Stakeholders</div>
             <h2 style={{ fontSize: 'clamp(28px,4vw,42px)', fontWeight: 900, letterSpacing: '-1.5px', margin: '0 0 14px', color: '#111' }}>
-              Designed for every role in the supply chain.
+              Built for everyone in the chain.
             </h2>
             <p style={{ fontSize: 15, color: '#6b7280', maxWidth: 500, margin: '0 auto', lineHeight: 1.7 }}>
-              Whether you buy, supply, or move goods — AgriFlow has a dedicated workflow for your role.
+              Whether you buy, supply, or move goods — AgriFlow has a dedicated workflow built for your role.
             </p>
           </div>
           <div className="roles-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14 }}>
@@ -874,21 +867,21 @@ export function LandingPage() {
             Start free · No credit card required
           </div>
           <h2 style={{ fontSize: 'clamp(32px,5vw,54px)', fontWeight: 900, letterSpacing: '-2px', lineHeight: 1.05, color: '#fff', margin: '0 0 18px' }}>
-            Move your agricultural<br />
-            <span className="shimmer-text">trade forward today.</span>
+            Trade produce with<br />
+            <span className="shimmer-text">people you can trust.</span>
           </h2>
           <p style={{ fontSize: 16, color: 'rgba(255,255,255,.4)', maxWidth: 460, margin: '0 auto 34px', lineHeight: 1.75 }}>
             Join the platform that brings buyers, suppliers, and carriers together under one transparent, escrow-secured system.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <button className="cta-btn-primary" onClick={() => navigate('/register')}>
-              Create Free Account <ArrowRight size={15} />
+              Get started — it's free <ArrowRight size={15} />
             </button>
             <button className="cta-btn-ghost" style={{ color: 'rgba(255,255,255,.65)', borderColor: 'rgba(255,255,255,.18)', background: 'rgba(255,255,255,.06)' }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,.1)'; }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,.06)'; }}
               onClick={() => navigate('/login')}>
-              Sign In to Dashboard
+              Sign in to dashboard
             </button>
           </div>
         </div>

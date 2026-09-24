@@ -284,7 +284,7 @@ export function ConfirmReceiptPage() {
                 type="button"
                 disabled={!canConfirm || isReleasing || completed}
                 onClick={handleConfirmRelease}
-                className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg transition-colors shadow-xs disabled:opacity-40 inline-flex items-center justify-center gap-2"
+                className="w-full py-2.5 px-4 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors shadow-xs disabled:opacity-40 inline-flex items-center justify-center gap-2"
               >
                 {isReleasing ? (
                   <>

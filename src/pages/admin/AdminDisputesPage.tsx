@@ -79,7 +79,7 @@ export function AdminDisputesPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <FreighterBanner />
 
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Disputes ({disputes.length})</h1>
@@ -119,8 +119,8 @@ export function AdminDisputesPage() {
                   {txn && <div className="col-span-2"><span className="text-gray-500">Transaction status: </span><StatusBadge status={txn.status} size="sm" /></div>}
                   {d.resolution && (
                     <div className="col-span-2 mt-1 px-3 py-2 bg-agri-50 border border-agri-200 rounded-lg">
-                      <div className="text-xs font-medium text-agri-800">Resolution: {d.resolution}</div>
-                      <div className="text-xs text-agri-600 mt-0.5">By {d.resolvedByName} · {d.resolvedAt && formatDateTime(d.resolvedAt)}</div>
+                      <div className="text-xs font-medium text-gray-800">Resolution: {d.resolution}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">By {d.resolvedByName} · {d.resolvedAt && formatDateTime(d.resolvedAt)}</div>
                     </div>
                   )}
                 </div>

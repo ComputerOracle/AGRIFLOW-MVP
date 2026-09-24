@@ -108,7 +108,7 @@ export function LogisticsJobDetailPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg">
           <ArrowLeft className="w-4 h-4 text-gray-500" />
@@ -150,7 +150,7 @@ export function LogisticsJobDetailPage() {
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-xl">
-                <MapPin className="w-4 h-4 text-agri-600 mt-0.5 shrink-0" />
+                <MapPin className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs text-gray-500 mb-0.5">Pickup</div>
                   <div className="text-sm font-semibold text-gray-800">{job.pickupLocation}</div>
@@ -162,10 +162,10 @@ export function LogisticsJobDetailPage() {
                 </div>
               </div>
               <div className="flex items-start gap-3 p-3 bg-agri-50 rounded-xl">
-                <CheckCircle2 className="w-4 h-4 text-agri-600 mt-0.5 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-gray-400 mt-0.5 shrink-0" />
                 <div>
                   <div className="text-xs text-gray-500 mb-0.5">Delivery</div>
-                  <div className="text-sm font-semibold text-agri-800">{job.deliveryLocation}</div>
+                  <div className="text-sm font-semibold text-gray-900">{job.deliveryLocation}</div>
                 </div>
               </div>
 
@@ -173,7 +173,7 @@ export function LogisticsJobDetailPage() {
                 <div><div className="text-xs text-gray-500 mb-0.5">Commodity</div><div className="text-sm font-medium">{formatCommodity(job.commodity)}</div></div>
                 <div><div className="text-xs text-gray-500 mb-0.5">Quantity</div><div className="text-sm font-medium">{job.quantity} {job.unit}</div></div>
                 <div><div className="text-xs text-gray-500 mb-0.5">Expected Delivery</div><div className="text-sm font-medium">{formatDate(job.expectedDeliveryDate)}</div></div>
-                <div><div className="text-xs text-gray-500 mb-0.5">Logistics Fee</div><div className="text-sm font-semibold text-agri-700">{formatCurrency(job.logisticsCost)}</div></div>
+                <div><div className="text-xs text-gray-500 mb-0.5">Logistics Fee</div><div className="text-sm font-semibold text-gray-900">{formatCurrency(job.logisticsCost)}</div></div>
               </div>
             </div>
           </CardContent>
@@ -188,7 +188,7 @@ export function LogisticsJobDetailPage() {
                 <div className="space-y-2">
                   <div><div className="text-xs text-gray-500 mb-0.5">Transaction ID</div><div className="text-sm font-mono text-gray-700">{txn.id}</div></div>
                   <div><div className="text-xs text-gray-500 mb-0.5">Buyer</div><div className="text-sm text-gray-700">{txn.buyerName}</div></div>
-                  <div><div className="text-xs text-gray-500 mb-0.5">Value</div><div className="text-sm font-bold text-agri-700">{formatCurrency(txn.totalAmount)}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Value</div><div className="text-sm font-bold text-gray-900">{formatCurrency(txn.totalAmount)}</div></div>
                   <div><div className="text-xs text-gray-500 mb-0.5">Status</div><StatusBadge status={txn.status} size="sm" /></div>
                 </div>
               </CardContent>

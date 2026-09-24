@@ -110,7 +110,7 @@ export function SupplyDetailPage() {
   const bestMatch = matches.length > 0 ? matches[0] : null;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center gap-3 mb-6">
         <button onClick={() => navigate(-1)} className="p-1.5 hover:bg-gray-100 rounded-lg">
           <ArrowLeft className="w-4 h-4 text-gray-500" />
@@ -140,8 +140,8 @@ export function SupplyDetailPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
                 <div className="px-3 py-3 bg-agri-50 rounded-xl">
-                  <div className="text-xs text-agri-600 mb-0.5">Price per unit</div>
-                  <div className="text-lg font-bold text-agri-800">{formatCurrency(listing.pricePerUnit)}</div>
+                  <div className="text-xs text-gray-400 mb-0.5">Price per unit</div>
+                  <div className="text-lg font-bold text-gray-900">{formatCurrency(listing.pricePerUnit)}</div>
                   <div className="text-xs text-agri-600">per {listing.unit}</div>
                 </div>
                 <div className="px-3 py-3 bg-gray-50 rounded-xl">
@@ -212,7 +212,7 @@ export function SupplyDetailPage() {
             <Card>
               <CardContent className="pt-5">
                 <div className="text-center mb-3">
-                  <div className="text-3xl font-bold text-agri-700">{bestMatch.score}%</div>
+                  <div className="text-3xl font-bold text-gray-900">{bestMatch.score}%</div>
                   <div className="text-xs text-gray-500 font-medium">Match Score</div>
                   <div className="text-[10px] text-gray-400">Rule-based compatibility match</div>
                 </div>
@@ -250,7 +250,7 @@ export function SupplyDetailPage() {
       {/* Transaction modal */}
       <Modal open={showTxnModal} onClose={() => setShowTxnModal(false)} title="Initiate Transaction">
         <div className="space-y-4">
-          <div className="px-3 py-2 bg-agri-50 border border-agri-200 rounded-lg text-xs text-agri-800">
+          <div className="px-3 py-2 bg-agri-50 border border-agri-200 rounded-lg text-xs {text-gray-900">
             Supplier: <strong>{listing.supplierName}</strong> · {formatCommodity(listing.commodity)} · Grade {listing.qualityGrade}
           </div>
           <Input
@@ -263,7 +263,7 @@ export function SupplyDetailPage() {
           <div className="text-sm text-gray-600">
             Unit price: {formatCurrency(listing.pricePerUnit)} / {listing.unit}
             {txnForm.quantity && (
-              <span className="ml-2 font-semibold text-agri-700">
+              <span className="ml-2 font-semibold text-gray-900">
                 Total: {formatCurrency(Number(txnForm.quantity) * listing.pricePerUnit)}
               </span>
             )}

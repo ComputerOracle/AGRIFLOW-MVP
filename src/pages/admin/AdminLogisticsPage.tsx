@@ -68,7 +68,7 @@ export function AdminLogisticsPage() {
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Logistics Jobs</h1>
 
       {sorted.length === 0 ? (
@@ -124,7 +124,7 @@ export function AdminLogisticsPage() {
                           </Button>
                         )}
                         {j.status !== 'PENDING' && txn && (
-                          <button onClick={() => navigate(`/app/transactions/${j.transactionId}`)} className="text-xs text-agri-600 hover:text-agri-700 font-medium">
+                          <button onClick={() => navigate(`/app/transactions/${j.transactionId}`)} className="text-xs text-gray-500 hover:text-gray-800 font-medium">
                             View TXN
                           </button>
                         )}

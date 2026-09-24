@@ -220,7 +220,7 @@ export function TransactionDetailPage() {
   const isTerminal = terminalStates.includes(txn.status);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       {/* Back + header */}
       <div className="flex items-start gap-4 mb-6">
         <button onClick={() => navigate(-1)} className="mt-1 p-1.5 hover:bg-gray-100 rounded-lg">
@@ -266,16 +266,16 @@ export function TransactionDetailPage() {
                 <div key={step} className="flex items-center gap-0 shrink-0">
                   <div className="flex flex-col items-center">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all
-                      ${done ? 'bg-agri-600 border-agri-600 text-white' : current ? 'bg-white border-agri-500 text-agri-600' : 'bg-white border-gray-300 text-gray-400'}`}>
-                      {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : current ? <Circle className="w-3.5 h-3.5 fill-agri-500" /> : <Circle className="w-3.5 h-3.5" />}
+                      ${done ? 'bg-gray-900 border-gray-900 text-white' : current ? 'bg-white border-gray-900 text-gray-900' : 'bg-white border-gray-300 text-gray-400'}`}>
+                      {done ? <CheckCircle2 className="w-3.5 h-3.5" /> : current ? <Circle className="w-3.5 h-3.5 fill-gray-600" /> : <Circle className="w-3.5 h-3.5" />}
                     </div>
                     <div className={`text-[9px] mt-1 text-center max-w-[60px] leading-tight font-medium
-                      ${done ? 'text-agri-700' : current ? 'text-agri-600' : 'text-gray-400'}`}>
+                      ${done ? 'text-gray-700' : current ? 'text-gray-600' : 'text-gray-400'}`}>
                       {getStatusLabel(step)}
                     </div>
                   </div>
                   {idx < TRANSACTION_PIPELINE.length - 1 && (
-                    <div className={`h-0.5 w-8 mx-1 ${pipelineIdx > idx ? 'bg-agri-500' : 'bg-gray-200'}`} />
+                    <div className={`h-0.5 w-8 mx-1 ${pipelineIdx > idx ? 'bg-gray-500' : 'bg-gray-200'}`} />
                   )}
                 </div>
               );
@@ -331,7 +331,7 @@ export function TransactionDetailPage() {
 
         {payProcessing && (
           <div className="px-4 py-4 bg-gray-50 border border-gray-200 rounded-xl flex items-center gap-3">
-            <Loader2 className="w-4 h-4 animate-spin text-agri-600" />
+            <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
             <p className="text-sm text-gray-700">Processing payment...</p>
           </div>
         )}
@@ -367,7 +367,7 @@ export function TransactionDetailPage() {
                   { label: 'Quantity', value: `${txn.quantity} ${txn.unit}` },
                   { label: 'Quality Grade', value: `Grade ${txn.qualityGrade}` },
                   { label: 'Price per Unit', value: formatCurrency(txn.pricePerUnit) },
-                  { label: 'Total Value', value: <span className="font-bold text-agri-700">{formatCurrency(txn.totalAmount)}</span> },
+                  { label: 'Total Value', value: <span className="font-bold text-gray-900">{formatCurrency(txn.totalAmount)}</span> },
                   { label: 'Currency', value: txn.currency },
                   { label: 'Pickup Location', value: txn.pickupLocation },
                   { label: 'Delivery Location', value: txn.deliveryLocation },
@@ -414,7 +414,7 @@ export function TransactionDetailPage() {
                 <div>
                   <div className="text-xs text-gray-500 mb-2 font-medium uppercase tracking-wide">Supplier</div>
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 bg-agri-100 rounded-full flex items-center justify-center text-agri-700 font-bold text-sm">
+                    <div className="w-8 h-8 bg-agri-100 rounded-full flex items-center justify-center text-gray-700 font-bold text-sm">
                       {txn.supplierName[0]}
                     </div>
                     <div>
@@ -434,12 +434,12 @@ export function TransactionDetailPage() {
               <CardContent>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div><div className="text-xs text-gray-500 mb-0.5">Payment ID</div><div className="text-sm font-mono text-gray-700">{payment.id}</div></div>
-                  <div><div className="text-xs text-gray-500 mb-0.5">Amount</div><div className="text-sm font-bold text-agri-700">{formatCurrency(payment.amount)}</div></div>
+                  <div><div className="text-xs text-gray-500 mb-0.5">Amount</div><div className="text-sm font-bold text-gray-900">{formatCurrency(payment.amount)}</div></div>
                   <div><div className="text-xs text-gray-500 mb-0.5">Provider</div><div className="text-sm text-gray-700">{payment.provider}</div></div>
                   <div>
                     <div className="text-xs text-gray-500 mb-0.5">Status</div>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full border inline-block
-                      ${payment.status === 'CONFIRMED' ? 'bg-agri-50 border-agri-200 text-agri-700' :
+                      ${payment.status === 'CONFIRMED' ? 'bg-agri-50 border-agri-200 text-gray-700' :
                         payment.status === 'FAILED' ? 'bg-red-50 border-red-200 text-red-700' :
                         'bg-amber-50 border-amber-200 text-amber-700'}`}>
                       {payment.status}
@@ -486,8 +486,8 @@ export function TransactionDetailPage() {
                     <div className="sm:col-span-2">
                       <div className="text-xs text-gray-500 mb-1">Proof of Delivery</div>
                       <div className="px-3 py-2 bg-agri-50 border border-agri-200 rounded-lg text-sm">
-                        <div className="font-medium text-agri-800">Received by: {job.proofOfDelivery.recipientName}</div>
-                        <div className="text-xs text-agri-600 mt-0.5">{job.proofOfDelivery.deliveryNote}</div>
+                        <div className="font-medium text-gray-800">Received by: {job.proofOfDelivery.recipientName}</div>
+                        <div className="text-xs text-gray-600 mt-0.5">{job.proofOfDelivery.deliveryNote}</div>
                         <div className="text-xs text-gray-500 mt-0.5">{formatDateTime(job.proofOfDelivery.timestamp)}</div>
                       </div>
                     </div>
@@ -544,7 +544,7 @@ export function TransactionDetailPage() {
           </div>
           <div>
             <div className="text-sm text-gray-600 mb-1">Amount</div>
-            <div className="text-2xl font-bold text-agri-700">{formatCurrency(txn.totalAmount)}</div>
+            <div className="text-2xl font-bold text-gray-900">{formatCurrency(txn.totalAmount)}</div>
           </div>
           <div>
             <div className="text-sm text-gray-600 mb-1">Provider</div>

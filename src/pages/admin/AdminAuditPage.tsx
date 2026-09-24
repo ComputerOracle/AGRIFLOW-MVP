@@ -31,7 +31,7 @@ export function AdminAuditPage() {
   const events = auditService.getAll();
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-5xl mx-auto space-y-5">
       <div className="flex items-center gap-3 mb-6">
         <BookOpen className="w-5 h-5 text-gray-600" />
         <h1 className="text-2xl font-bold text-gray-900">Audit Trail ({events.length} events)</h1>

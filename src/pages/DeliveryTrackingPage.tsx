@@ -142,7 +142,7 @@ export function DeliveryTrackingPage() {
             <button
               type="button"
               onClick={() => navigate(`/app/transactions/${tx?.id}/confirm`)}
-              className="px-3 py-1.5 text-xs font-semibold text-white bg-agri-700 hover:bg-agri-800 rounded-lg shadow-xs cursor-pointer"
+              className="px-3 py-1.5 text-xs font-semibold text-white bg-gray-900 hover:bg-gray-800 rounded-lg shadow-xs cursor-pointer"
             >
               Confirm Receipt & Release Escrow
             </button>
@@ -222,7 +222,7 @@ export function DeliveryTrackingPage() {
             </h2>
 
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-agri-50 border border-agri-200 flex items-center justify-center font-bold text-agri-800">
+              <div className="w-9 h-9 rounded-lg bg-agri-50 border border-agri-200 flex items-center justify-center font-bold text-gray-900">
                 {carrierName.charAt(0).toUpperCase()}
               </div>
               <div>
