@@ -190,3 +190,44 @@ Perform final security verification, static analysis, gas optimization review, a
   - Automated contract verification on BaseScan / Etherscan.
 - [ ] **Documentation & ABI Generation**:
   - Export contract ABIs and deployed addresses to `src/contracts/` for frontend integration.
+
+---
+
+## 🖥️ Backend Engineering Issues (Web3 Bridge & Relayers)
+
+---
+
+### 📌 ISSUE 6 (Assigned to: Backend Team) — Created (#54)
+**Title:** `[Backend/Web3] Implement NEAR Intent Listener & On-Chain Escrow Relayer Worker`  
+**Assignee:** `backend`  
+**Labels:** `backend`, `web3`, `near-intents`, `relayer`, `P0`
+
+#### Requirements:
+- [ ] Intent Status Polling & Webhook listener (`1click.chaindefuser.com/v0/status`).
+- [ ] Automated execution of `AgriFlowEscrow.fundTradeFromIntent(...)` using platform relayer key.
+- [ ] PostgreSQL persistence for `deposit_address`, `intent_tx_hash`, and computed `details_hash`.
+
+---
+
+### 📌 ISSUE 7 (Assigned to: Backend Team) — Created (#55)
+**Title:** `[Backend/GasMaster] Implement Gasless Meta-Transaction Relayer Endpoint (POST /api/relayer/forward)`  
+**Assignee:** `backend`  
+**Labels:** `backend`, `gas-master`, `relayer`, `meta-transactions`, `P0`
+
+#### Requirements:
+- [ ] Endpoint `POST /api/relayer/forward` accepting EIP-712 forward requests.
+- [ ] Security whitelisting and deadline validation.
+- [ ] Gas sponsorship execution via `AgriFlowGasMaster.execute(req, signature)`.
+
+---
+
+### 📌 ISSUE 8 (Assigned to: Backend Team) — Created (#56)
+**Title:** `[Backend/Indexer] On-Chain Escrow Event Listener & Database Sync Service`  
+**Assignee:** `backend`  
+**Labels:** `backend`, `indexer`, `events`, `notifications`, `P1`
+
+#### Requirements:
+- [ ] WebSocket/RPC subscription for `TradeFunded`, `DeliveryConfirmed`, `FundsReleased`, `Withdrawn`.
+- [ ] PostgreSQL transaction state machine synchronization.
+- [ ] Trigger automated email notifications (`email.rs`) and in-app alerts.
+
