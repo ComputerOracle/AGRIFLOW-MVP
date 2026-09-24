@@ -97,35 +97,52 @@ pub async fn create(
         return Err(AppError::BadRequest("Quantity must be greater than zero.".into()));
     }
 
-    let id = ids::generate("D");
     let currency = body.currency.unwrap_or_else(|| "NGN".to_string());
 
-    let demand = sqlx::query_as!(
-        DemandRequest,
-        r#"
-        INSERT INTO demand_requests
-            (id, buyer_id, buyer_name, commodity, quantity, unit, quality_grade,
-             destination_location, required_by_date, indicative_budget, currency, notes, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'open')
-        RETURNING id, buyer_id, buyer_name, commodity, quantity, unit, quality_grade,
-                  destination_location, required_by_date, indicative_budget, currency, notes,
-                  status as "status: _", created_at, updated_at
-        "#,
-        id,
-        auth.user_id,
-        auth.name,
-        body.commodity,
-        body.quantity,
-        body.unit,
-        body.quality_grade,
-        body.destination_location,
-        body.required_by_date,
-        body.indicative_budget,
-        currency,
-        body.notes,
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let mut demand = None;
+    for _ in 0..ids::MAX_ID_ATTEMPTS {
+        let id = ids::generate("D");
+        match sqlx::query_as!(
+            DemandRequest,
+            r#"
+            INSERT INTO demand_requests
+                (id, buyer_id, buyer_name, commodity, quantity, unit, quality_grade,
+                 destination_location, required_by_date, indicative_budget, currency, notes, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'open')
+            RETURNING id, buyer_id, buyer_name, commodity, quantity, unit, quality_grade,
+                      destination_location, required_by_date, indicative_budget, currency, notes,
+                      status as "status: _", created_at, updated_at
+            "#,
+            id,
+            auth.user_id,
+            auth.name,
+            body.commodity,
+            body.quantity,
+            body.unit,
+            body.quality_grade,
+            body.destination_location,
+            body.required_by_date,
+            body.indicative_budget,
+            currency,
+            body.notes,
+        )
+        .fetch_one(&state.db)
+        .await
+        {
+            Ok(d) => {
+                demand = Some(d);
+                break;
+            }
+            Err(e) if ids::is_id_collision(&e) => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    let demand = demand.ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!(
+            "failed to generate a unique demand id after {} attempts",
+            ids::MAX_ID_ATTEMPTS
+        ))
+    })?;
 
     Ok(Json(demand))
 }

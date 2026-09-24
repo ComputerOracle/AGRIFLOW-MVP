@@ -53,16 +53,42 @@ client — not even admin — can move a transaction past payment-pending
 today. Nothing downstream (logistics, delivery, completion) is reachable
 until a payment/webhook endpoint exists.
 
-### 4. Entity ID generation has an unhandled collision window
+### 4. Entity ID generation has an unhandled collision window — ✅ FIXED (2026-09-24)
 `src/ids.rs::generate()` draws a random 5-digit suffix (`10_000..99_999`,
 ~90,000 values) with no collision check or retry, and that value is the
 literal `TEXT PRIMARY KEY` for users, listings, demands, and transactions.
 By the birthday paradox, ~375 inserts of one entity type give roughly 50%
 odds of a collision, which would surface as a raw, unhandled `500 A
-database error occurred.` A 500-request rapid listing-creation stress test
-came back clean (zero collisions) — that's luck, not a guarantee, and isn't
-evidence the risk is safe to ignore. Fix: switch to UUIDs, or add a
-uniqueness check + retry loop around ID generation.
+database error occurred.`
+
+Fixed with a retry loop (not a switch to UUIDs — `README.md` explicitly
+documents the human-readable id format as intentional, and a retry loop
+preserves it without that larger, more disruptive change). Added
+`ids::MAX_ID_ATTEMPTS` (5) and `ids::is_id_collision(&sqlx::Error)`, which
+checks specifically for a Postgres unique-violation on a table's
+auto-generated `<table>_pkey` constraint (as opposed to, say,
+`users_email_key`, which no amount of retrying with a new id would ever
+resolve). All four id-assigning inserts (`auth::register`,
+`listings::create`, `demands::create`, `transactions::create`) now loop:
+generate an id, attempt the insert, regenerate and retry on a PK collision,
+propagate any other error immediately, and return a clean `500` (logged
+server-side with detail, generic message to the client) if genuinely
+exhausted after 5 attempts. `transactions::create`'s case is the trickiest,
+since it holds an open DB transaction across two inserts (the transaction
+row, then its first history event) -- a collision there drops the whole
+`tx` (Postgres aborts a transaction after any failed statement in it, so
+partial retry isn't possible) and starts a fresh one for the next attempt.
+
+Verified empirically, not just by inspection: temporarily shrank the id
+space to 3 possible values, then created listings against it. The first
+three succeeded with three distinct ids (proving the retry loop actually
+regenerates on collision), and a fourth attempt -- genuinely impossible,
+no free ids left -- failed cleanly with `500 An internal error occurred.`
+instead of hanging, crashing, or silently creating a duplicate; the server
+log correctly recorded `failed to generate a unique listing id after 5
+attempts` without leaking that detail to the client. Restored the real id
+space afterward and re-ran an end-to-end check across all four entity
+types. `cargo test` passes.
 
 ### 5. Input validation is inconsistent between near-identical fields
 - `pricePerUnit` on listings rejects negative values; `indicativeBudget` on
