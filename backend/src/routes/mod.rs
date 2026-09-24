@@ -1,3 +1,4 @@
+pub mod admin;
 pub mod auth;
 pub mod demands;
 pub mod listings;
@@ -13,7 +14,10 @@ pub fn build(state: AppState) -> Router {
     let api = Router::new()
         .route("/auth/register", post(auth::register))
         .route("/auth/login", post(auth::login))
+        .route("/auth/admin/login", post(auth::admin_login))
         .route("/auth/me", get(auth::me))
+        .route("/admin/users", get(admin::list_users))
+        .route("/admin/users/{id}/verify", post(admin::verify_user))
         .route("/listings", get(listings::list_active).post(listings::create))
         .route("/listings/mine", get(listings::mine))
         .route("/listings/{id}", get(listings::get_one).patch(listings::update))

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        INSERT INTO supply_listings\n            (id, supplier_id, supplier_name, supplier_verified, commodity, quantity, unit,\n             quality_grade, price_per_unit, currency, location, availability_date, description, status)\n        VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')\n        RETURNING id, supplier_id, supplier_name, supplier_verified, commodity, quantity,\n                  unit, quality_grade, price_per_unit, currency, location, availability_date,\n                  description, status as \"status: _\", created_at, updated_at\n        ",
+  "query": "\n            INSERT INTO supply_listings\n                (id, supplier_id, supplier_name, supplier_verified, commodity, quantity, unit,\n                 quality_grade, price_per_unit, currency, location, availability_date, description, status)\n            VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')\n            RETURNING id, supplier_id, supplier_name, supplier_verified, commodity, quantity,\n                      unit, quality_grade, price_per_unit, currency, location, availability_date,\n                      description, status as \"status: _\", created_at, updated_at\n            ",
   "describe": {
     "columns": [
       {
@@ -215,5 +215,5 @@
       false
     ]
   },
-  "hash": "47534196717972d7c2194e1b957def8be958070054c5adefbef7e121bfea415b"
+  "hash": "322176abddc986a980d69e173ffa2c883f39c20b32ec592b14df9b6d223fce98"
 }
