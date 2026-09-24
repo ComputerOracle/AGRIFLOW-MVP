@@ -74,8 +74,8 @@ All routes are under `/api`.
 | POST   | `/auth/login`                 | —              | |
 | POST   | `/auth/admin/login`           | —              | Same as `/auth/login`, but rejects non-admin credentials with the same generic error as a wrong password |
 | GET    | `/auth/me`                    | any            | |
-| GET    | `/admin/users`                | admin          | Lists all users (no password hash) |
-| POST   | `/admin/users/:id/verify`     | admin          | Sets `verified = true` |
+| GET    | `/admin/users`                | admin          | `?role=&search=&page=&limit=` (page default 1, limit default 20, max 100). Returns `{ users, total, page, limit }`. `search` matches name/email/organization (case-insensitive substring) |
+| PATCH  | `/admin/users/:id/verify`     | admin          | `{ "verified": true \| false }` -- can un-verify, not just verify |
 | GET    | `/listings`                   | any            | `?commodity=&status=` (default `status=active`) |
 | GET    | `/listings/mine`               | supplier        | |
 | POST   | `/listings`                    | supplier        | |

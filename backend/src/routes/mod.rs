@@ -4,7 +4,7 @@ pub mod demands;
 pub mod listings;
 pub mod transactions;
 
-use axum::{Router, routing::{get, post}};
+use axum::{Router, routing::{get, patch, post}};
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
@@ -17,7 +17,7 @@ pub fn build(state: AppState) -> Router {
         .route("/auth/admin/login", post(auth::admin_login))
         .route("/auth/me", get(auth::me))
         .route("/admin/users", get(admin::list_users))
-        .route("/admin/users/{id}/verify", post(admin::verify_user))
+        .route("/admin/users/{id}/verify", patch(admin::set_verified))
         .route("/listings", get(listings::list_active).post(listings::create))
         .route("/listings/mine", get(listings::mine))
         .route("/listings/{id}", get(listings::get_one).patch(listings::update))
