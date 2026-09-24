@@ -5,9 +5,10 @@ users, supply listings, demand requests, and transactions — ported 1:1 from
 the business logic in the React app's `src/services/*`, so the frontend can
 be repointed from `localStorage` to HTTP calls without behavior changes.
 
-This slice covers **auth, users, listings, demands, and the transaction state
-machine**. Escrow/payments, logistics jobs, disputes, notifications, and the
-audit log are not built yet — see "Not built yet" below.
+This slice covers **auth, users, listings, demands, the transaction state
+machine, and logistics job tracking**. Escrow/payments, disputes,
+notifications, and the audit log are not built yet — see "Not built yet"
+below.
 
 ## Stack
 
@@ -89,6 +90,16 @@ All routes are under `/api`.
 | GET    | `/transactions`                     | any                 | Role-scoped: buyer/supplier see their own, admin sees all |
 | GET    | `/transactions/:id`                  | participant or admin | Includes full event history |
 | POST   | `/transactions/:id/transition`        | participant (role-gated by state machine) | `{ "to": "ACCEPTED", "note": "..." }` |
+| GET    | `/logistics/jobs`                     | logistics or admin | Logistics sees unclaimed (`PENDING`) jobs plus their own; admin sees all |
+| POST   | `/logistics/jobs/:id/claim`           | logistics           | Self-assigns an unclaimed job. `409` if already claimed |
+| POST   | `/logistics/jobs/:id/assign`          | admin                | `{ "providerId": "..." }` -- must be a `logistics`-role user |
+| PATCH  | `/logistics/jobs/:id/status`          | logistics (job's assigned provider only) | `{ "status": "IN_TRANSIT", "proofOfDelivery": {...} }`. Advances the transaction state machine for statuses that map to one (`ACCEPTED`, `REJECTED`, `READY_FOR_PICKUP`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`, `COMPLETED`) |
+
+A `logistics_jobs` row is auto-created (idempotently) the moment a
+transaction's payment is confirmed (`mock_confirm_payment` /
+`transactions.logistics_job_id`), mirroring
+`logisticsService.createJobForTransaction`'s "called automatically after
+payment is confirmed" behavior -- there's no manual "create job" endpoint.
 
 ## Not built yet (next slices)
 

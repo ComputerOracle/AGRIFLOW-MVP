@@ -2,6 +2,7 @@ pub mod admin;
 pub mod auth;
 pub mod demands;
 pub mod listings;
+pub mod logistics;
 pub mod transactions;
 
 use axum::{Router, routing::{get, patch, post}};
@@ -31,6 +32,10 @@ pub fn build(state: AppState) -> Router {
         .route("/transactions/{id}/payment/initiate", post(transactions::initiate_payment))
         .route("/transactions/{id}/payment/confirm", post(transactions::mock_confirm_payment))
         .route("/transactions/{id}/payment/fail", post(transactions::mock_fail_payment))
+        .route("/logistics/jobs", get(logistics::list_jobs))
+        .route("/logistics/jobs/{id}/claim", post(logistics::claim_job))
+        .route("/logistics/jobs/{id}/assign", post(logistics::assign_job))
+        .route("/logistics/jobs/{id}/status", patch(logistics::update_status))
         .with_state(state);
 
     Router::new()
