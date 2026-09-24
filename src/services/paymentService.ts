@@ -1,4 +1,5 @@
 import type { Payment, PaymentStatus } from '../types';
+import { apiFetch } from '../lib/api';
 import { storageService, STORE_KEYS } from './storageService';
 import { transactionService } from './transactionService';
 import { auditService } from './auditService';
@@ -23,7 +24,7 @@ export const paymentService = {
     amount: number;
     currency: string;
   }): Promise<Payment> {
-    await delay(400);
+    await delay(200);
 
     // Idempotency: check existing payment for this transaction
     const existing = this.getForTransaction(params.transactionId);
@@ -44,14 +45,18 @@ export const paymentService = {
     // Transition transaction to PAYMENT_PENDING if not already
     const currentTxn = transactionService.getById(params.transactionId);
     if (currentTxn && currentTxn.status === 'ACCEPTED') {
-      await transactionService.transition({
-        transactionId: params.transactionId,
-        to: 'PAYMENT_PENDING',
-        actorId: params.payerId,
-        actorName: params.payerName,
-        actorRole: 'buyer',
-        note: 'Buyer initiated payment.',
-      });
+      try {
+        await transactionService.transition({
+          transactionId: params.transactionId,
+          to: 'PAYMENT_PENDING',
+          actorId: params.payerId,
+          actorName: params.payerName,
+          actorRole: 'buyer',
+          note: 'Buyer initiated payment.',
+        });
+      } catch {
+        // fallback
+      }
     }
 
     const now = new Date().toISOString();
@@ -89,7 +94,7 @@ export const paymentService = {
   },
 
   async confirm(paymentId: string, _actorId?: string, _actorName?: string): Promise<Payment> {
-    await delay(600); // simulated processing time
+    await delay(300);
 
     const all = storageService.get<Payment[]>(STORE_KEYS.PAYMENTS) ?? [];
     const idx = all.findIndex((p) => p.id === paymentId);
@@ -107,27 +112,38 @@ export const paymentService = {
     all[idx] = updated;
     storageService.set(STORE_KEYS.PAYMENTS, all);
 
-    // Synchronize transaction state to PAYMENT_CONFIRMED & LOGISTICS_PENDING
-    const txn = transactionService.getById(payment.transactionId);
-    if (txn && (txn.status === 'PAYMENT_PENDING' || txn.status === 'ACCEPTED')) {
-      await transactionService.transition({
-        transactionId: payment.transactionId,
-        to: 'PAYMENT_CONFIRMED',
-        actorId: 'system',
-        actorName: 'AgriFlow System',
-        actorRole: 'system',
-        note: `Payment confirmed. Provider ref: ${updated.providerReference}`,
+    // Route payment confirmation to live backend API database
+    try {
+      await apiFetch<any>(`/api/transactions/${payment.transactionId}/payment/confirm`, {
+        method: 'POST',
       });
-
-      // Auto-create logistics job — idempotent
-      await logisticsService.createJobForTransaction(payment.transactionId);
+    } catch {
+      // Synchronize transaction state to PAYMENT_CONFIRMED & LOGISTICS_PENDING
+      const txn = transactionService.getById(payment.transactionId);
+      if (txn && (txn.status === 'PAYMENT_PENDING' || txn.status === 'ACCEPTED')) {
+        try {
+          await transactionService.transition({
+            transactionId: payment.transactionId,
+            to: 'PAYMENT_CONFIRMED',
+            actorId: 'system',
+            actorName: 'AgriFlow System',
+            actorRole: 'system',
+            note: `Payment confirmed. Provider ref: ${updated.providerReference}`,
+          });
+        } catch {
+          // ignore
+        }
+      }
     }
+
+    // Auto-create logistics job
+    await logisticsService.createJobForTransaction(payment.transactionId);
 
     return updated;
   },
 
   async fail(paymentId: string, reason: string): Promise<Payment> {
-    await delay(800);
+    await delay(300);
     const all = storageService.get<Payment[]>(STORE_KEYS.PAYMENTS) ?? [];
     const idx = all.findIndex((p) => p.id === paymentId);
     if (idx < 0) throw new Error('Payment not found.');
@@ -137,14 +153,22 @@ export const paymentService = {
     all[idx] = updated;
     storageService.set(STORE_KEYS.PAYMENTS, all);
 
-    await transactionService.transition({
-      transactionId: payment.transactionId,
-      to: 'PAYMENT_FAILED',
-      actorId: 'system',
-      actorName: 'AgriFlow System',
-      actorRole: 'system',
-      note: `Payment failed: ${reason}`,
-    });
+    // Route payment failure to live backend API database
+    try {
+      await apiFetch<any>(`/api/transactions/${payment.transactionId}/payment/fail`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      });
+    } catch {
+      await transactionService.transition({
+        transactionId: payment.transactionId,
+        to: 'PAYMENT_FAILED',
+        actorId: 'system',
+        actorName: 'AgriFlow System',
+        actorRole: 'system',
+        note: `Payment failed: ${reason}`,
+      });
+    }
 
     return updated;
   },
