@@ -19,6 +19,7 @@ pub struct DemandQuery {
 
 pub async fn list_open(
     State(state): State<AppState>,
+    _auth: AuthUser,
     Query(q): Query<DemandQuery>,
 ) -> AppResult<Json<Vec<DemandRequest>>> {
     let status = q.status.unwrap_or_else(|| "open".to_string());
@@ -67,6 +68,7 @@ pub async fn mine(
 
 pub async fn get_one(
     State(state): State<AppState>,
+    _auth: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<DemandRequest>> {
     let demand = sqlx::query_as!(
