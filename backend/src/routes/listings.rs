@@ -108,36 +108,53 @@ pub async fn create(
         return Err(AppError::BadRequest("Price cannot be negative.".into()));
     }
 
-    let id = ids::generate("SUP");
     let currency = body.currency.unwrap_or_else(|| "NGN".to_string());
     let description = body.description.unwrap_or_default();
 
-    let listing = sqlx::query_as!(
-        SupplyListing,
-        r#"
-        INSERT INTO supply_listings
-            (id, supplier_id, supplier_name, supplier_verified, commodity, quantity, unit,
-             quality_grade, price_per_unit, currency, location, availability_date, description, status)
-        VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')
-        RETURNING id, supplier_id, supplier_name, supplier_verified, commodity, quantity,
-                  unit, quality_grade, price_per_unit, currency, location, availability_date,
-                  description, status as "status: _", created_at, updated_at
-        "#,
-        id,
-        auth.user_id,
-        auth.name,
-        body.commodity,
-        body.quantity,
-        body.unit,
-        body.quality_grade,
-        body.price_per_unit,
-        currency,
-        body.location,
-        body.availability_date,
-        description,
-    )
-    .fetch_one(&state.db)
-    .await?;
+    let mut listing = None;
+    for _ in 0..ids::MAX_ID_ATTEMPTS {
+        let id = ids::generate("SUP");
+        match sqlx::query_as!(
+            SupplyListing,
+            r#"
+            INSERT INTO supply_listings
+                (id, supplier_id, supplier_name, supplier_verified, commodity, quantity, unit,
+                 quality_grade, price_per_unit, currency, location, availability_date, description, status)
+            VALUES ($1, $2, $3, TRUE, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'active')
+            RETURNING id, supplier_id, supplier_name, supplier_verified, commodity, quantity,
+                      unit, quality_grade, price_per_unit, currency, location, availability_date,
+                      description, status as "status: _", created_at, updated_at
+            "#,
+            id,
+            auth.user_id,
+            auth.name,
+            body.commodity,
+            body.quantity,
+            body.unit,
+            body.quality_grade,
+            body.price_per_unit,
+            currency,
+            body.location,
+            body.availability_date,
+            description,
+        )
+        .fetch_one(&state.db)
+        .await
+        {
+            Ok(l) => {
+                listing = Some(l);
+                break;
+            }
+            Err(e) if ids::is_id_collision(&e) => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
+    let listing = listing.ok_or_else(|| {
+        AppError::Internal(anyhow::anyhow!(
+            "failed to generate a unique listing id after {} attempts",
+            ids::MAX_ID_ATTEMPTS
+        ))
+    })?;
 
     Ok(Json(listing))
 }
