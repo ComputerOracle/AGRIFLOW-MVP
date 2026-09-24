@@ -8,6 +8,7 @@ use crate::auth::AuthUser;
 use crate::error::{AppError, AppResult};
 use crate::ids;
 use crate::models::listing::SupplyListing;
+use crate::models::payment::{ConfirmPaymentRequest, InitiatePaymentRequest, Payment};
 use crate::models::transaction::{
     CreateTransactionRequest, MockPaymentFailRequest, Transaction, TransactionEvent,
     TransactionWithHistory, TransitionRequest,
@@ -408,6 +409,71 @@ pub(crate) async fn history_for(state: &AppState, id: &str) -> AppResult<Vec<Tra
     .await?)
 }
 
+async fn payment_for_txn(state: &AppState, transaction_id: &str) -> AppResult<Option<Payment>> {
+    Ok(sqlx::query_as!(
+        Payment,
+        r#"SELECT id, transaction_id, payer_id, amount, currency, provider, provider_reference,
+                  stellar_tx_hash, status, failure_reason, created_at, updated_at, completed_at
+           FROM payments WHERE transaction_id = $1"#,
+        transaction_id,
+    )
+    .fetch_optional(&state.db)
+    .await?)
+}
+
+/// Creates the pending payment record for a transaction the buyer is about
+/// to pay -- the durable counterpart to the ACCEPTED -> PAYMENT_PENDING
+/// transition the generic /transition endpoint already allows a buyer to
+/// drive. Idempotent: calling it again for the same transaction returns the
+/// existing record rather than creating a second one.
+pub async fn initiate_payment(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+    Json(body): Json<InitiatePaymentRequest>,
+) -> AppResult<Json<Payment>> {
+    let txn = load_transaction(&state, &id).await?;
+    assert_is_buyer_on_txn(&auth, &txn)?;
+
+    if let Some(existing) = payment_for_txn(&state, &id).await? {
+        return Ok(Json(existing));
+    }
+
+    if body.amount <= rust_decimal::Decimal::ZERO {
+        return Err(AppError::BadRequest("Amount must be greater than zero.".into()));
+    }
+
+    // NOTE: single-attempt id generation, matching every other insert on
+    // this branch of main today. The collision-retry helper (ids::generate
+    // with a retry loop) lives in a separate, not-yet-merged PR
+    // (fix/id-collision-retry) -- once that lands, this insert should be
+    // updated to use it the same way listings/demands/users/transactions
+    // do, rather than duplicating that mechanism here first.
+    let payment_id = ids::generate("PAY-AGF");
+    let payment = sqlx::query_as!(
+        Payment,
+        r#"
+        INSERT INTO payments (id, transaction_id, payer_id, amount, currency, status)
+        VALUES ($1, $2, $3, $4, $5, 'PENDING')
+        RETURNING id, transaction_id, payer_id, amount, currency, provider, provider_reference,
+                  stellar_tx_hash, status, failure_reason, created_at, updated_at, completed_at
+        "#,
+        payment_id,
+        id,
+        auth.user_id,
+        body.amount,
+        body.currency,
+    )
+    .fetch_one(&state.db)
+    .await?;
+
+    sqlx::query!("UPDATE transactions SET payment_id = $1 WHERE id = $2", payment.id, id)
+        .execute(&state.db)
+        .await?;
+
+    Ok(Json(payment))
+}
+
 /// Settles the mock escrow payment for a transaction the buyer initiated,
 /// then immediately queues it for logistics.
 ///
@@ -424,13 +490,53 @@ pub(crate) async fn history_for(state: &AppState, id: &str) -> AppResult<Vec<Tra
 /// actor table itself, and POST /transactions/:id/transition still rejects
 /// these on any role, System included, since nothing can present System's
 /// credentials there.
+///
+/// The amount/currency being settled are never taken from the request body
+/// here -- only from the payment row `initiate_payment` already created.
+/// Letting the caller redeclare the amount at confirm time would let a
+/// buyer "confirm" a payment for less than they actually owed.
 pub async fn mock_confirm_payment(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(id): Path<String>,
+    Json(body): Json<ConfirmPaymentRequest>,
 ) -> AppResult<Json<TransactionWithHistory>> {
     let txn = load_transaction(&state, &id).await?;
     assert_is_buyer_on_txn(&auth, &txn)?;
+
+    let payment = payment_for_txn(&state, &id)
+        .await?
+        .ok_or_else(|| AppError::BadRequest("Call payment/initiate before confirming.".into()))?;
+
+    if payment.status != "CONFIRMED" {
+        let provider_reference = payment.provider_reference.unwrap_or_else(ids::provider_reference);
+        sqlx::query!(
+            r#"UPDATE payments SET
+                 status = 'CONFIRMED',
+                 provider = COALESCE($2, provider),
+                 provider_reference = $3,
+                 stellar_tx_hash = COALESCE($4, stellar_tx_hash),
+                 completed_at = COALESCE(completed_at, now()),
+                 updated_at = now()
+               WHERE id = $1"#,
+            payment.id,
+            body.provider,
+            provider_reference,
+            body.stellar_tx_hash,
+        )
+        .execute(&state.db)
+        .await?;
+    }
+
+    // Idempotent: a retry (network hiccup, double-click) after the
+    // transaction already reached LOGISTICS_PENDING must not fail -- the
+    // transitions below aren't valid to run twice (Postgres would reject
+    // LOGISTICS_PENDING -> PAYMENT_CONFIRMED as an illegal move), so just
+    // return the already-settled state.
+    if txn.status == "LOGISTICS_PENDING" {
+        let history = history_for(&state, &id).await?;
+        return Ok(Json(TransactionWithHistory { transaction: txn, history }));
+    }
 
     let mut db_tx = state.db.begin().await?;
     apply_system_transition(
@@ -471,7 +577,20 @@ pub async fn mock_fail_payment(
     let txn = load_transaction(&state, &id).await?;
     assert_is_buyer_on_txn(&auth, &txn)?;
 
+    let payment = payment_for_txn(&state, &id)
+        .await?
+        .ok_or_else(|| AppError::BadRequest("Call payment/initiate before reporting failure.".into()))?;
+
     let reason = body.reason.unwrap_or_else(|| "Payment failed.".to_string());
+
+    sqlx::query!(
+        "UPDATE payments SET status = 'FAILED', failure_reason = $2, updated_at = now() WHERE id = $1",
+        payment.id,
+        reason,
+    )
+    .execute(&state.db)
+    .await?;
+
     let mut db_tx = state.db.begin().await?;
     let transaction = apply_system_transition(
         &mut db_tx,
@@ -484,4 +603,15 @@ pub async fn mock_fail_payment(
 
     let history = history_for(&state, &id).await?;
     Ok(Json(TransactionWithHistory { transaction, history }))
+}
+
+/// Reads the payment record for a transaction, if one exists yet.
+pub async fn get_payment(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(id): Path<String>,
+) -> AppResult<Json<Option<Payment>>> {
+    let txn = load_transaction(&state, &id).await?;
+    assert_participant_or_admin(&auth, &txn)?;
+    Ok(Json(payment_for_txn(&state, &id).await?))
 }
