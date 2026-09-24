@@ -5,6 +5,7 @@ use crate::error::{AppError, AppResult};
 use crate::ids;
 use crate::models::user::{AuthResponse, LoginRequest, RegisterRequest, User, UserPublic, UserRole};
 use crate::state::AppState;
+use crate::validation::is_valid_email;
 
 const ADMIN_KEY_HEADER: &str = "x-admin-registration-key";
 
@@ -15,6 +16,9 @@ pub async fn register(
 ) -> AppResult<Json<AuthResponse>> {
     if body.name.trim().is_empty() || body.email.trim().is_empty() {
         return Err(AppError::BadRequest("Name and email are required.".into()));
+    }
+    if !is_valid_email(&body.email) {
+        return Err(AppError::BadRequest("Enter a valid email address.".into()));
     }
     // Admins can't sign themselves up: registering one requires the
     // server-side ADMIN_REGISTRATION_KEY (used by seed scripts and tests).

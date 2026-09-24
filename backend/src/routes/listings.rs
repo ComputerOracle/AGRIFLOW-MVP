@@ -10,6 +10,7 @@ use crate::ids;
 use crate::models::listing::{CreateListingRequest, ListingStatus, SupplyListing, UpdateListingRequest};
 use crate::models::user::UserRole;
 use crate::state::AppState;
+use crate::validation::require_non_empty;
 
 #[derive(Debug, Deserialize)]
 pub struct ListingQuery {
@@ -94,6 +95,11 @@ pub async fn create(
     Json(body): Json<CreateListingRequest>,
 ) -> AppResult<Json<SupplyListing>> {
     auth.require_role(UserRole::Supplier)?;
+
+    require_non_empty("commodity", &body.commodity)?;
+    require_non_empty("unit", &body.unit)?;
+    require_non_empty("qualityGrade", &body.quality_grade)?;
+    require_non_empty("location", &body.location)?;
 
     if body.quantity <= rust_decimal::Decimal::ZERO {
         return Err(AppError::BadRequest("Quantity must be greater than zero.".into()));
