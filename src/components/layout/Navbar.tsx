@@ -121,10 +121,8 @@ export function Navbar() {
             </nav>
 
             {/* Right: utilities + user */}
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="hidden sm:flex items-center gap-1.5">
-                <LanguageSwitcher />
-              </div>
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <LanguageSwitcher />
 
               {/* Voice button — visible on all sizes */}
               <button

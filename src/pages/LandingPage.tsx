@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Menu, X } from 'lucide-react';
+import { LanguageSwitcher } from '../components/ui/LanguageSwitcher';
 
 /* ─── scroll-triggered visibility ─── */
 function useInView(threshold = 0.1) {
@@ -317,6 +318,7 @@ export function LandingPage() {
 
           {/* Right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <LanguageSwitcher />
             <button className="lp-nav-link lp-hide-mob" onClick={() => navigate('/login')}>Sign In</button>
             <button className="lp-btn-primary lp-hide-mob" style={{ padding: '9px 18px', fontSize: 13 }} onClick={() => navigate('/register')}>Get Started</button>
             <button
@@ -332,6 +334,9 @@ export function LandingPage() {
         {/* Mobile menu */}
         {menuOpen && (
           <div style={{ background: '#fff', borderTop: '1px solid #f3f4f6', padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ paddingBottom: 8, borderBottom: '1px solid #f3f4f6' }}>
+              <LanguageSwitcher />
+            </div>
             {NAV_LINKS.map(l => (
               <button key={l.label} className="lp-nav-link" style={{ textAlign: 'left' }} onClick={() => scrollTo(l.id)}>{l.label}</button>
             ))}
