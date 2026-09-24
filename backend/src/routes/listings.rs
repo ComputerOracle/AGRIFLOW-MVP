@@ -19,6 +19,7 @@ pub struct ListingQuery {
 
 pub async fn list_active(
     State(state): State<AppState>,
+    _auth: AuthUser,
     Query(q): Query<ListingQuery>,
 ) -> AppResult<Json<Vec<SupplyListing>>> {
     let status = q.status.unwrap_or_else(|| "active".to_string());
@@ -67,6 +68,7 @@ pub async fn mine(
 
 pub async fn get_one(
     State(state): State<AppState>,
+    _auth: AuthUser,
     Path(id): Path<String>,
 ) -> AppResult<Json<SupplyListing>> {
     let listing = sqlx::query_as!(

@@ -28,13 +28,24 @@ be treated as a punch list.
 
 ## Required changes (blocking)
 
-### 1. Four endpoints require no authentication at all
+### 1. Four endpoints require no authentication at all — ✅ FIXED (2026-09-24)
 `GET /listings`, `GET /listings/{id}`, `GET /demands`, `GET /demands/{id}`.
-Flagged as undesirable for this product. Fix: add the `auth: AuthUser`
-extractor to all four handlers in `src/routes/listings.rs` /
-`src/routes/demands.rs` (same pattern every other handler already uses),
-decide the intended role scope, and update the API surface table in
-`README.md` once changed.
+Flagged as undesirable for this product. Fixed by adding the `auth:
+AuthUser` extractor to all four handlers — any authenticated role (buyer,
+supplier, logistics, admin) can now browse, but an anonymous caller gets
+`401 Missing Authorization header.`. No role restriction beyond "must be
+logged in," since both buyers and suppliers legitimately need to browse
+both listings and demands. Verified: unauthenticated requests to all four
+routes now 401; authenticated requests (any role) succeed unchanged.
+See the updated API surface table in `README.md`.
+
+A resource-key-based gate (a secret issued by the backend, separate from
+user login) was considered and deliberately rejected in favor of this
+simpler fix — see discussion history for the reasoning: a statically
+embedded key in a public SPA build is trivially extractable from the
+browser bundle regardless of expiry, and a dynamically-issued key with no
+credential check on issuance doesn't stop scripted abuse either. User-role
+gating was judged sufficient for now.
 
 ### 2. Decimal fields serialize as JSON strings, not numbers
 `quantity`, `pricePerUnit`, `totalAmount`, and `indicativeBudget` all come
