@@ -64,17 +64,30 @@ came back clean (zero collisions) — that's luck, not a guarantee, and isn't
 evidence the risk is safe to ignore. Fix: switch to UUIDs, or add a
 uniqueness check + retry loop around ID generation.
 
-### 5. Input validation is inconsistent between near-identical fields
-- `pricePerUnit` on listings rejects negative values; `indicativeBudget` on
-  demands does **not** — `-999999` was accepted with `200 OK`.
-- Empty strings are accepted for `commodity`, `unit`, `qualityGrade`, and
-  `location` on both listings and demands (a listing with `commodity: ""`
-  was created successfully).
-- Email format is not validated on register — `"not-an-email"` was accepted
-  as a valid email.
+### 5. Input validation is inconsistent between near-identical fields — ✅ FIXED (2026-09-24)
+- `pricePerUnit` on listings rejected negative values; `indicativeBudget` on
+  demands did **not** — `-999999` was accepted with `200 OK`.
+- Empty strings were accepted for `commodity`, `unit`, `qualityGrade`, and
+  `location`/`destinationLocation` on both listings and demands (a listing
+  with `commodity: ""` was created successfully).
+- Email format was not validated on register — `"not-an-email"` was
+  accepted as a valid email.
 
-Fix: apply the same validation consistently across listing and demand
-creation, and add basic email-format and non-empty-string checks.
+Fixed with a new shared `src/validation.rs` module (`require_non_empty`,
+`is_valid_email`) instead of each handler inventing its own version of the
+check:
+- `demands::create` now rejects a negative `indicativeBudget`, matching
+  `listings::create`'s existing `pricePerUnit` check.
+- Both `listings::create` and `demands::create` now reject blank
+  `commodity`, `unit`, `qualityGrade`, and `location`/`destinationLocation`.
+- `auth::register` now rejects an email without an `@`, a non-empty local
+  part, and a domain containing a `.` (deliberately permissive — not full
+  RFC 5322 validation, just enough to catch obviously-invalid input).
+
+Verified: all four previously-accepted invalid inputs now return `400`
+with a clear message; valid listings, demands, and registrations are
+unaffected. Two new unit tests for `is_valid_email` plus the existing
+suite all pass (`cargo test`, 8 tests).
 
 ### 6. Error response shape is inconsistent
 Hand-written `AppError` responses return `{"error": "..."}` with correct

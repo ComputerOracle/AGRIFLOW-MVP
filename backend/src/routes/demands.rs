@@ -10,6 +10,7 @@ use crate::ids;
 use crate::models::demand::{CreateDemandRequest, DemandRequest};
 use crate::models::user::UserRole;
 use crate::state::AppState;
+use crate::validation::require_non_empty;
 
 #[derive(Debug, Deserialize)]
 pub struct DemandQuery {
@@ -93,8 +94,16 @@ pub async fn create(
 ) -> AppResult<Json<DemandRequest>> {
     auth.require_role(UserRole::Buyer)?;
 
+    require_non_empty("commodity", &body.commodity)?;
+    require_non_empty("unit", &body.unit)?;
+    require_non_empty("qualityGrade", &body.quality_grade)?;
+    require_non_empty("destinationLocation", &body.destination_location)?;
+
     if body.quantity <= rust_decimal::Decimal::ZERO {
         return Err(AppError::BadRequest("Quantity must be greater than zero.".into()));
+    }
+    if body.indicative_budget < rust_decimal::Decimal::ZERO {
+        return Err(AppError::BadRequest("Indicative budget cannot be negative.".into()));
     }
 
     let id = ids::generate("D");
