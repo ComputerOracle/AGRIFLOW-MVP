@@ -329,8 +329,9 @@ export function DeliveryTrackingPage() {
               <div className="flex justify-between py-1">
                 <span className="text-gray-500">Payment Escrow</span>
                 <span className="font-semibold text-emerald-700">
-                  {isCompleted ? 'Escrow Released' : 'Secured in Soroban'}
+                  {isCompleted ? 'Escrow Released' : 'Secured in Escrow'}
                 </span>
+
               </div>
             </div>
           </div>
