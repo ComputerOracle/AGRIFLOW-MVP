@@ -5,9 +5,9 @@ users, supply listings, demand requests, and transactions — ported 1:1 from
 the business logic in the React app's `src/services/*`, so the frontend can
 be repointed from `localStorage` to HTTP calls without behavior changes.
 
-This slice covers **auth, users, listings, demands, the transaction state
-machine, and logistics job tracking**. Escrow/payments, disputes,
-notifications, and the audit log are not built yet — see "Not built yet"
+This slice covers **auth, users, admin, listings, demands, the transaction
+state machine, mock escrow payments, logistics job tracking, and disputes**.
+Notifications and the audit log are not built yet — see "Not built yet"
 below.
 
 ## Stack
@@ -91,15 +91,17 @@ All routes are under `/api`.
 | GET    | `/transactions`                     | any                 | Role-scoped: buyer/supplier see their own, admin sees all |
 | GET    | `/transactions/:id`                  | participant or admin | Includes full event history |
 | POST   | `/transactions/:id/transition`        | participant (role-gated by state machine) | `{ "to": "ACCEPTED", "note": "..." }` |
-| GET    | `/transactions/:id/payment`           | participant or admin | The payment record, or `null` if none yet |
-| POST   | `/transactions/:id/payment/initiate`  | buyer (on this txn) | Creates the pending payment row. Idempotent |
-| POST   | `/transactions/:id/payment/confirm` / `/fail` | buyer (on this txn) | Mock escrow settlement. `409` for a Bachs payment -- only its webhook can settle one |
-| POST   | `/transactions/:id/payment/bachs/checkout-session` | buyer (on this txn) | `{ "successUrl"?, "cancelUrl"? }` → `{ checkoutId, checkoutUrl }`. Creates a Bachs hosted checkout for the initiated payment's amount (never taken from the request). Redirect URLs off `FRONTEND_BASE_URL` are replaced with defaults. Also reopens a `PAYMENT_FAILED` transaction for a retry. `503` if Bachs isn't configured, `502` if Bachs rejects the call |
-| POST   | `/webhooks/bachs`                     | Bachs signature | `collection.succeeded` → payment `CONFIRMED`, transaction → `LOGISTICS_PENDING` + logistics job. `collection.failed` → payment `FAILED`, transaction → `PAYMENT_FAILED`. Verifies `X-Bachs-Signature-V2` (or the legacy pair) against the raw body with a 5-minute window; `401` otherwise. Deduplicated on the event id (`bachs_webhook_events`). A success that collected less than the payment amount, or in another currency, is logged and not confirmed |
+| GET    | `/transactions/:id/payment`            | participant or admin | The transaction's payment record, if one exists |
+| POST   | `/transactions/:id/payment/initiate`   | buyer (owner)      | `{ "amount": 10000, "currency": "NGN" }`. Idempotent |
+| POST   | `/transactions/:id/payment/confirm`    | buyer (owner)      | Mock escrow settlement -- see `transactions.rs::mock_confirm_payment` doc comment for why this is buyer-triggered rather than a real payment webhook. Atomically settles the payment, drives the transaction to `LOGISTICS_PENDING`, and auto-creates its `logistics_jobs` row |
+| POST   | `/transactions/:id/payment/fail`       | buyer (owner)      | `{ "reason": "..." }` |
 | GET    | `/logistics/jobs`                     | logistics or admin | Logistics sees unclaimed (`PENDING`) jobs plus their own; admin sees all |
 | POST   | `/logistics/jobs/:id/claim`           | logistics           | Self-assigns an unclaimed job. `409` if already claimed |
 | POST   | `/logistics/jobs/:id/assign`          | admin                | `{ "providerId": "..." }` -- must be a `logistics`-role user |
 | PATCH  | `/logistics/jobs/:id/status`          | logistics (job's assigned provider only) | `{ "status": "IN_TRANSIT", "proofOfDelivery": {...} }`. Advances the transaction state machine for statuses that map to one (`ACCEPTED`, `REJECTED`, `READY_FOR_PICKUP`, `PICKED_UP`, `IN_TRANSIT`, `DELIVERED`, `COMPLETED`) |
+| POST   | `/disputes`                            | buyer (owner)        | `{ "transactionId": "...", "reason": "...", "description": "..." }`. Buyer-only: the transaction state machine's `DISPUTED` status only allows `Actor::Buyer` (see `disputes.rs` doc comment). Atomically transitions the transaction to `DISPUTED` |
+| GET    | `/disputes`                            | any                  | Admin sees all; buyer/supplier see disputes on transactions they're a party to |
+| POST   | `/disputes/:id/resolve`                | admin                | `{ "decision": "...", "outcome": "completed" \| "cancelled" }`. Atomically transitions the transaction to `COMPLETED` or `CANCELLED` |
 
 A `logistics_jobs` row is auto-created (idempotently) the moment a
 transaction's payment is confirmed (`mock_confirm_payment` /
@@ -109,21 +111,16 @@ payment is confirmed" behavior -- there's no manual "create job" endpoint.
 
 ## Not built yet (next slices)
 
-- **Escrow payouts** — Naira collection runs through Bachs checkout +
-  webhook, and the mock-escrow endpoints still cover the other payment
-  paths. Releasing held funds to the supplier on `DELIVERY_CONFIRMED`
-  (issue #31's payout endpoint) and refunds aren't built.
-- **Logistics jobs** — provider assignment, milestone updates, proof of
-  delivery. The state machine already supports these statuses
-  (`LOGISTICS_ASSIGNED`, `IN_TRANSIT`, etc.); only the `logistics_jobs`
-  table and endpoints are missing.
-- **Disputes, notifications, audit log** — same story: state machine and
-  data model are ready to extend, tables/endpoints aren't built. The
-  `GET /admin/disputes`, `POST /admin/disputes/:id/resolve`, and
-  `GET /admin/audit` endpoints from issue #33 aren't implemented for this
-  reason -- there's no `disputes`/`audit_logs` table to back them yet, and
-  the `require_role(Admin)` pattern `admin::list_users`/`verify_user` use
-  is ready to reuse once those tables exist.
+- **Notifications, audit log** — state machine and data model are ready to
+  extend, tables/endpoints aren't built. The `GET /admin/audit` endpoint
+  from issue #33 isn't implemented for this reason -- there's no
+  `audit_logs` table to back it yet, and the `require_role(Admin)` pattern
+  `admin::list_users`/`set_verified` use is ready to reuse once it exists.
+- **Real on-chain escrow** — payments today are a mock escrow flow
+  (buyer-triggered settlement, see the payment endpoints above), not a
+  real payment provider or on-chain contract.
+- **Cloud storage for listing media, commodity inspection metadata** —
+  tracked as issues #32 and #34.
 - **Matching engine** — the weighted scoring algorithm from
   `matchingService.ts` hasn't been ported.
 

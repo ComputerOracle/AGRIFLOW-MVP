@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod auth;
 pub mod demands;
+pub mod disputes;
 pub mod health;
 pub mod listings;
 pub mod logistics;
@@ -44,6 +45,8 @@ pub fn build(state: AppState) -> Router {
         .route("/logistics/jobs/{id}/claim", post(logistics::claim_job))
         .route("/logistics/jobs/{id}/assign", post(logistics::assign_job))
         .route("/logistics/jobs/{id}/status", patch(logistics::update_status))
+        .route("/disputes", get(disputes::list).post(disputes::raise))
+        .route("/disputes/{id}/resolve", post(disputes::resolve))
         .with_state(state);
 
     Router::new()
