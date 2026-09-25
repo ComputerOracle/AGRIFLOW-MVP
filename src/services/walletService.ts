@@ -4,6 +4,7 @@ import { logisticsService } from './logisticsService';
 import { auditService } from './auditService';
 import { notificationService } from './notificationService';
 import { mintTestnetUsdc } from '../lib/stellar';
+import type { Transaction, LogisticsJob } from '../types';
 
 export interface WithdrawalRequest {
   id: string;
@@ -40,8 +41,10 @@ function generateId(): string {
 }
 
 export const walletService = {
-  getSupplierBalance(supplierId: string): WalletSummary {
-    const allTxns = transactionService.getAll().filter((t) => t.supplierId === supplierId);
+  getSupplierBalance(supplierId: string, customTxns?: Transaction[]): WalletSummary {
+    const allTxns = customTxns && customTxns.length > 0
+      ? customTxns.filter((t) => t.supplierId === supplierId)
+      : transactionService.getAll().filter((t) => t.supplierId === supplierId);
     
     // Total earned from completed transactions where escrow was released
     const completedTxns = allTxns.filter((t) => t.status === 'COMPLETED');
@@ -80,8 +83,10 @@ export const walletService = {
     };
   },
 
-  getLogisticsBalance(providerId: string): WalletSummary {
-    const allJobs = logisticsService.getForProvider(providerId);
+  getLogisticsBalance(providerId: string, customJobs?: LogisticsJob[]): WalletSummary {
+    const allJobs = customJobs && customJobs.length > 0
+      ? customJobs.filter((j) => j.providerId === providerId)
+      : logisticsService.getForProvider(providerId);
 
     const completedJobs = allJobs.filter((j) => j.status === 'COMPLETED');
     const totalEarned = completedJobs.reduce((acc, j) => acc + (j.logisticsCost || 0), 0);
