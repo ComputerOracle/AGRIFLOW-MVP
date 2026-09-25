@@ -91,6 +91,11 @@ All routes are under `/api`.
 | GET    | `/transactions`                     | any                 | Role-scoped: buyer/supplier see their own, admin sees all |
 | GET    | `/transactions/:id`                  | participant or admin | Includes full event history |
 | POST   | `/transactions/:id/transition`        | participant (role-gated by state machine) | `{ "to": "ACCEPTED", "note": "..." }` |
+| GET    | `/transactions/:id/payment`           | participant or admin | The payment record, or `null` if none yet |
+| POST   | `/transactions/:id/payment/initiate`  | buyer (on this txn) | Creates the pending payment row. Idempotent |
+| POST   | `/transactions/:id/payment/confirm` / `/fail` | buyer (on this txn) | Mock escrow settlement. `409` for a Bachs payment -- only its webhook can settle one |
+| POST   | `/transactions/:id/payment/bachs/checkout-session` | buyer (on this txn) | `{ "successUrl"?, "cancelUrl"? }` → `{ checkoutId, checkoutUrl }`. Creates a Bachs hosted checkout for the initiated payment's amount (never taken from the request). Redirect URLs off `FRONTEND_BASE_URL` are replaced with defaults. Also reopens a `PAYMENT_FAILED` transaction for a retry. `503` if Bachs isn't configured, `502` if Bachs rejects the call |
+| POST   | `/webhooks/bachs`                     | Bachs signature | `collection.succeeded` → payment `CONFIRMED`, transaction → `LOGISTICS_PENDING` + logistics job. `collection.failed` → payment `FAILED`, transaction → `PAYMENT_FAILED`. Verifies `X-Bachs-Signature-V2` (or the legacy pair) against the raw body with a 5-minute window; `401` otherwise. Deduplicated on the event id (`bachs_webhook_events`). A success that collected less than the payment amount, or in another currency, is logged and not confirmed |
 | GET    | `/logistics/jobs`                     | logistics or admin | Logistics sees unclaimed (`PENDING`) jobs plus their own; admin sees all |
 | POST   | `/logistics/jobs/:id/claim`           | logistics           | Self-assigns an unclaimed job. `409` if already claimed |
 | POST   | `/logistics/jobs/:id/assign`          | admin                | `{ "providerId": "..." }` -- must be a `logistics`-role user |
@@ -104,10 +109,10 @@ payment is confirmed" behavior -- there's no manual "create job" endpoint.
 
 ## Not built yet (next slices)
 
-- **Escrow/payments** — this is the big one. Plan is an `EscrowProvider`
-  trait with a `MockEscrow` implementation first (so payment endpoints work
-  end-to-end today), swapped for a real on-chain (USDC) implementation once
-  a contract exists.
+- **Escrow payouts** — Naira collection runs through Bachs checkout +
+  webhook, and the mock-escrow endpoints still cover the other payment
+  paths. Releasing held funds to the supplier on `DELIVERY_CONFIRMED`
+  (issue #31's payout endpoint) and refunds aren't built.
 - **Logistics jobs** — provider assignment, milestone updates, proof of
   delivery. The state machine already supports these statuses
   (`LOGISTICS_ASSIGNED`, `IN_TRANSIT`, etc.); only the `logistics_jobs`
@@ -137,6 +142,9 @@ See `.env.example`. `JWT_SECRET` must be changed before any real deployment
 | `ADMIN_SEED_PASSWORD` | no | Read only by `cargo run --bin seed_admin`, which upserts the default `admin@agriflow.africa` account. Not read by the API server itself |
 | `RESEND_API_KEY` | no | [Resend](https://resend.com) key for the welcome email sent on registration. Unset → emails are skipped (logged) |
 | `EMAIL_FROM` | no | Sender address. Defaults to Resend's test sender `onboarding@resend.dev`, which only delivers to the Resend account owner — verify a domain in Resend and set this before sending to real users |
+| `BACHS_SECRET_KEY` | no | [Bachs.io](https://docs.bachs.io) API key. `sk_sandbox_...` uses `sandbox-api.bachs.io`, anything else `api.bachs.io`. Unset → the checkout-session endpoint returns `503` |
+| `BACHS_WEBHOOK_SECRET` | no | Signing secret of the Bachs webhook endpoint (developer portal → Webhooks), which should point at `<API origin>/api/webhooks/bachs` and subscribe to `collection.succeeded` and `collection.failed`. Unset → every delivery is rejected |
+| `FRONTEND_BASE_URL` | no | Public origin of the React app, e.g. `https://agri-flowmvp.vercel.app`. Checkout redirects are restricted to it and default to its `/app/transactions/:id` pages. Bachs rejects `localhost` redirect URLs |
 
 Welcome emails are sent in the background after the account is created, so
 an email failure never fails a registration — check the logs for
