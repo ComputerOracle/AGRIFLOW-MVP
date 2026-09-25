@@ -139,6 +139,9 @@ See `.env.example`. `JWT_SECRET` must be changed before any real deployment
 | `ADMIN_SEED_PASSWORD` | no | Read only by `cargo run --bin seed_admin`, which upserts the default `admin@agriflow.africa` account. Not read by the API server itself |
 | `RESEND_API_KEY` | no | [Resend](https://resend.com) key for the welcome email sent on registration. Unset → emails are skipped (logged) |
 | `EMAIL_FROM` | no | Sender address. Defaults to Resend's test sender `onboarding@resend.dev`, which only delivers to the Resend account owner — verify a domain in Resend and set this before sending to real users |
+| `BACHS_SECRET_KEY` | no | [Bachs.io](https://docs.bachs.io) API key. `sk_sandbox_...` uses `sandbox-api.bachs.io`, anything else `api.bachs.io`. Unset → the checkout-session endpoint returns `503` |
+| `BACHS_WEBHOOK_SECRET` | no | Signing secret of the Bachs webhook endpoint (developer portal → Webhooks), which should point at `<API origin>/api/webhooks/bachs` and subscribe to `collection.succeeded` and `collection.failed`. Unset → every delivery is rejected |
+| `FRONTEND_BASE_URL` | no | Public origin of the React app, e.g. `https://agri-flowmvp.vercel.app`. Checkout redirects are restricted to it and default to its `/app/transactions/:id` pages. Bachs rejects `localhost` redirect URLs |
 
 Welcome emails are sent in the background after the account is created, so
 an email failure never fails a registration — check the logs for
