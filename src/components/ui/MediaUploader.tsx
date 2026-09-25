@@ -5,7 +5,6 @@ import {
   X,
   Play,
   AlertCircle,
-  Sparkles,
   Loader2,
 } from 'lucide-react';
 import type { ListingMedia, CommodityType } from '../../types';
@@ -22,91 +21,9 @@ interface MediaUploaderProps {
   listingId?: string;
 }
 
-// Curated high quality authentic agricultural demo media
-const SAMPLE_MEDIA_LIBRARY: Record<
-  string,
-  { type: 'image' | 'video'; url: string; name: string; caption: string }[]
-> = {
-  maize: [
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?auto=format&fit=crop&w=1200&q=80',
-      name: 'Dry_Yellow_Maize_Batch_A.jpg',
-      caption: 'Grade A Yellow Maize - Dried to 12.5% Moisture',
-    },
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1596797882870-8c33deeac224?auto=format&fit=crop&w=1200&q=80',
-      name: 'Clean_Grain_Inspection.jpg',
-      caption: 'Close-up grain purity inspection (99.2% clean grain)',
-    },
-    {
-      type: 'video',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-      name: 'Farm_Warehouse_Video_Proof.mp4',
-      caption: 'Warehouse inspection video recording & bagging verification',
-    },
-  ],
-  rice: [
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&w=1200&q=80',
-      name: 'Milled_Parboiled_Rice.jpg',
-      caption: 'Standard Long Grain Parboiled Rice - 50kg Bags',
-    },
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?auto=format&fit=crop&w=1200&q=80',
-      name: 'Rice_Paddy_Harvest.jpg',
-      caption: 'Freshly harvested paddy before de-stoning and polishing',
-    },
-    {
-      type: 'video',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
-      name: 'Milling_Line_Video.mp4',
-      caption: 'Automated de-stoning & bag sealing live video clip',
-    },
-  ],
-  soybean: [
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1599940824399-b87987ceb72a?auto=format&fit=crop&w=1200&q=80',
-      name: 'Non_GMO_Soybeans.jpg',
-      caption: 'Clean non-GMO Soybeans ready for oil extraction / feed milling',
-    },
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?auto=format&fit=crop&w=1200&q=80',
-      name: 'Soybean_Quality_Test.jpg',
-      caption: 'Batch laboratory moisture and protein certification',
-    },
-    {
-      type: 'video',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
-      name: 'Soybean_Loading_Video.mp4',
-      caption: 'Palletized soybean loading inspection video',
-    },
-  ],
-  general: [
-    {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1200&q=80',
-      name: 'Farm_Produce_Storage.jpg',
-      caption: 'A-Grade farm produce in ventilated dry storage',
-    },
-    {
-      type: 'video',
-      url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      name: 'Produce_Inspection_Clip.mp4',
-      caption: 'Live batch quality & packaging inspection footage',
-    },
-  ],
-};
-
 export function MediaUploader({
   media = [],
   onChange,
-  commodity = 'maize',
   maxFiles = 8,
   listingId,
 }: MediaUploaderProps) {
@@ -226,56 +143,24 @@ export function MediaUploader({
     }
     // Already on the server: delete it there too, so it isn't left in the
     // bucket. (An upload still in flight is cleaned up server-side later.)
-    if (item && !item.isSample && item.status !== 'uploading' && !id.startsWith('local_')) {
+    if (item && item.status !== 'uploading' && !id.startsWith('local_')) {
       mediaService.remove(id).catch(() => {
         // Unattached uploads are purged server-side after 24h anyway.
       });
     }
   };
 
-  const handleAddSamplePreset = () => {
-    const samples = SAMPLE_MEDIA_LIBRARY[commodity] || SAMPLE_MEDIA_LIBRARY.general;
-    const itemsToAdd: ListingMedia[] = samples.map((s, idx) => ({
-      id: `sample_${commodity}_${Date.now()}_${idx}`,
-      type: s.type,
-      url: s.url,
-      name: s.name,
-      caption: s.caption,
-      uploadedAt: new Date().toISOString(),
-      isSample: true,
-    }));
-
-    // Avoid duplicates
-    const existingUrls = new Set(media.map((m) => m.url));
-    const filtered = itemsToAdd.filter((item) => !existingUrls.has(item.url));
-
-    if (filtered.length > 0) {
-      onChange([...media, ...filtered]);
-    }
-  };
-
-  const coverIndex = media.findIndex((m) => m.type === 'image' && !m.isSample && m.status !== 'failed');
+  const coverIndex = media.findIndex((m) => m.type === 'image' && m.status !== 'failed');
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <label className="block text-xs font-bold text-gray-900">
-            Produce Photos &amp; Inspection Videos
-          </label>
-          <p className="text-[11px] text-gray-500">
-            Upload high-resolution pictures and video clips of the harvest, bags, and warehouse.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={handleAddSamplePreset}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors cursor-pointer"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-          + Add Sample Produce Media
-        </button>
+      <div>
+        <label className="block text-xs font-bold text-gray-900">
+          Produce Photos &amp; Inspection Videos
+        </label>
+        <p className="text-[11px] text-gray-500">
+          Upload high-resolution pictures and video clips of the harvest, bags, and warehouse.
+        </p>
       </div>
 
       {/* Drag & Drop Box */}
@@ -397,11 +282,6 @@ export function MediaUploader({
                       <span className="text-[9px] text-red-100 mt-1">Remove and try again</span>
                     </div>
                   )}
-                  {item.isSample && (
-                    <span className="absolute top-2 left-2 mt-6 px-1.5 py-0.5 rounded bg-amber-500/90 text-white text-[9px] font-bold uppercase tracking-wider">
-                      Sample · not published
-                    </span>
-                  )}
 
                   {/* Primary Badge: the server makes the first uploaded photo the cover */}
                   {index === coverIndex && (
@@ -472,3 +352,4 @@ export function MediaUploader({
     </div>
   );
 }
+
